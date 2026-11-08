@@ -12,9 +12,9 @@ parameters:
         - tests
 
     excludePaths:
-        - bootstrap/cache
-        - storage
-        - node_modules
+        - bootstrap/cache (?)
+        - storage (?)
+        - node_modules (?)
         - vendor
 
     treatPhpDocTypesAsCertain: false
