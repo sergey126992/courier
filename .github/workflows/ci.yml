@@ -60,6 +60,18 @@ jobs:
           PGPASSWORD: courier
         run: psql -h 127.0.0.1 -U courier -d courier -c 'CREATE DATABASE courier_testing;'
 
+      - name: Миграции тестовой базы
+        # Scramble читает схему таблиц для атрибутов моделей: без миграций
+        # описание собирается неполным и не совпадает с зафиксированным файлом.
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: courier_testing
+          DB_USERNAME: courier
+          DB_PASSWORD: courier
+        run: php artisan migrate --force
+
       - name: Документация API
         # Расхождение описания с кодом останавливает сборку (FR-API-8).
         # Схема строится из кода, но генератору нужны метаданные моделей,
