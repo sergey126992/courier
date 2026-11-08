@@ -8,7 +8,6 @@ use App\Services\Events\TransportDriver;
 use App\Services\Notifications\Channels\FakePushProvider;
 use App\Services\Notifications\Channels\PushProviderFactory;
 use Illuminate\Foundation\Application;
-use InvalidArgumentException;
 
 it('поднимает приложение сервиса оповещений', function (): void {
     expect(app())->toBeInstanceOf(Application::class)
