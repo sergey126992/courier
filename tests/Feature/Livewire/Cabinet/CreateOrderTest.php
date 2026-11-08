@@ -136,7 +136,11 @@ it('оставляет один акцент на итоговом действ�
     $calculate = preg_quote(__('ui.actions.calculate'), '/');
     $create = preg_quote(__('ui.actions.create_order'), '/');
 
-    // FR-UI-202: единственный акцент — итоговое действие, расчёт вторичный.
+    // DEBUG (временно)
+    if (preg_match('/<button[^>]*btn btn-secondary[^>]*>\s*'.$calculate.'/s', $html) !== 1) {
+        file_put_contents('/tmp/ci-debug.html', $html);
+        file_put_contents('/tmp/ci-debug.txt', 'locale='.app()->getLocale().' calc='.$calculate."\ncount_primary=".substr_count($html, 'btn btn-primary')."\ncount_secondary=".substr_count($html, 'btn btn-secondary')."\nlen=".strlen($html)."\n");
+    }    // FR-UI-202: единственный акцент — итоговое действие, расчёт вторичный.
     expect(substr_count($html, 'btn btn-primary'))->toBe(1)
         ->and(preg_match('/<button[^>]*btn btn-secondary[^>]*>\s*'.$calculate.'/s', $html))->toBe(1)
         ->and(preg_match('/<button[^>]*btn btn-primary[^>]*>\s*'.$create.'/s', $html))->toBe(1);

@@ -29,6 +29,16 @@ jobs:
           --health-timeout 3s
           --health-retries 12
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -99,6 +109,8 @@ jobs:
           DB_DATABASE: courier_testing
           DB_USERNAME: courier
           DB_PASSWORD: courier
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
         run: sh docker/php/run-tests.sh --parallel --coverage --min=80
 
   assets:
