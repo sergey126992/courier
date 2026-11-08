@@ -62,7 +62,15 @@ jobs:
 
       - name: Документация API
         # Расхождение описания с кодом останавливает сборку (FR-API-8).
-        # Шагу не нужны база и сеть: схема строится из кода.
+        # Схема строится из кода, но генератору нужны метаданные моделей,
+        # поэтому шагу даётся CI-подключение к тестовой базе.
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: courier_testing
+          DB_USERNAME: courier
+          DB_PASSWORD: courier
         run: php artisan api:docs --check
 
       - name: Стиль (Pint)
