@@ -133,14 +133,16 @@ it('оставляет один акцент на итоговом действ�
     $response = $this->get('/cabinet/orders/create')->assertOk();
     $html = (string) $response->getContent();
 
+    // Livewire вставляет в HTML морф-маркеры <!--[if BLOCK]><![endif]--> вокруг
+    // условий Blade; они попадают в вывод, только если представление скомпилировано
+    // в контексте рендера Livewire-компонента. Для проверки разметки это шум:
+    // комментарии убираем, чтобы результат не зависел от порядка компиляции вьюх.
+    $html = (string) preg_replace('/<!--.*?-->/s', '', $html);
+
     $calculate = preg_quote(__('ui.actions.calculate'), '/');
     $create = preg_quote(__('ui.actions.create_order'), '/');
 
-    // DEBUG (временно)
-    if (preg_match('/<button[^>]*btn btn-secondary[^>]*>\s*'.$calculate.'/s', $html) !== 1) {
-        file_put_contents('/tmp/ci-debug.html', $html);
-        file_put_contents('/tmp/ci-debug.txt', 'locale='.app()->getLocale().' calc='.$calculate."\ncount_primary=".substr_count($html, 'btn btn-primary')."\ncount_secondary=".substr_count($html, 'btn btn-secondary')."\nlen=".strlen($html)."\n");
-    }    // FR-UI-202: единственный акцент — итоговое действие, расчёт вторичный.
+    // FR-UI-202: единственный акцент — итоговое действие, расчёт вторичный.
     expect(substr_count($html, 'btn btn-primary'))->toBe(1)
         ->and(preg_match('/<button[^>]*btn btn-secondary[^>]*>\s*'.$calculate.'/s', $html))->toBe(1)
         ->and(preg_match('/<button[^>]*btn btn-primary[^>]*>\s*'.$create.'/s', $html))->toBe(1);
