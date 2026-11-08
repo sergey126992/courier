@@ -1,0 +1,131 @@
+/*
+|--------------------------------------------------------------------------
+| Статус доставки уведомлений
+|--------------------------------------------------------------------------
+|
+| FR-NTF-284, FR-UI-176: строка «канал — состояние» читается текстом, цвет
+| только дополняет подпись. Значения — токены темы, литеральных цветов нет.
+|
+*/
+
+@layer components {
+    .notification-status {
+        min-width: 0;
+    }
+
+    .notification-status-list {
+        display: grid;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .notification-status-item {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+        min-width: 0;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--token-border);
+    }
+
+    .notification-status-item:last-child {
+        border-bottom: 0;
+    }
+
+    .notification-status-channel {
+        min-width: 0;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--token-text);
+    }
+
+    .notification-status-state {
+        font-size: 0.8125rem;
+        color: var(--token-muted);
+    }
+
+    /* Тон дополняет подпись: статус остаётся читаемым без различения цветов. */
+    .notification-status-state[data-state='sent'] {
+        color: var(--token-success);
+    }
+
+    .notification-status-state[data-state='failed'] {
+        color: var(--token-error);
+    }
+
+    /* Страницы администратора: подпись источника и журнал уведомлений (ЧТЗ 8.2). */
+    .notification-source {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--token-muted);
+    }
+
+    .journal-list {
+        display: grid;
+        gap: 0.75rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .notification-row {
+        padding: 1rem;
+    }
+
+    .notification-row-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .notification-row-title {
+        min-width: 0;
+        margin: 0;
+        font-weight: 600;
+        color: var(--token-text);
+        word-break: break-word;
+    }
+
+    .notification-row-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem 1rem;
+        margin: 0.5rem 0 0;
+        font-size: 0.8125rem;
+        color: var(--token-muted);
+    }
+
+    .notification-row-meta dt {
+        font-weight: 600;
+    }
+
+    .notification-row-meta dd {
+        margin: 0;
+    }
+
+    .notification-row-action {
+        margin-top: 0.75rem;
+    }
+
+    .push-message {
+        padding: 1rem;
+    }
+
+    .push-message-meta {
+        margin: 0;
+        font-size: 0.8125rem;
+        color: var(--token-muted);
+    }
+
+    .push-message-body {
+        margin: 0.5rem 0;
+        color: var(--token-text);
+        white-space: pre-line;
+        word-break: break-word;
+    }
+}

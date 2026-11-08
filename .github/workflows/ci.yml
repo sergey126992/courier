@@ -1,0 +1,213 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Стиль, статический анализ, тесты
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: courier
+          POSTGRES_USER: courier
+          POSTGRES_PASSWORD: courier
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U courier -d courier"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Кэш Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, mbstring, bcmath
+          coverage: xdebug
+          ini-values: memory_limit=512M
+          tools: composer:v2
+
+      - name: Установка зависимостей
+        run: |
+          cp .env.example .env
+          composer install --no-interaction --prefer-dist --no-progress
+          php artisan key:generate
+
+      - name: Тестовая база
+        env:
+          PGPASSWORD: courier
+        run: psql -h 127.0.0.1 -U courier -d courier -c 'CREATE DATABASE courier_testing;'
+
+      - name: Документация API
+        # Расхождение описания с кодом останавливает сборку (FR-API-8).
+        # Шагу не нужны база и сеть: схема строится из кода.
+        run: php artisan api:docs --check
+
+      - name: Стиль (Pint)
+        run: ./vendor/bin/pint --test
+
+      - name: Статический анализ (PHPStan)
+        run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
+      - name: Тесты и покрытие
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: courier_testing
+          DB_USERNAME: courier
+          DB_PASSWORD: courier
+        run: sh docker/php/run-tests.sh --parallel --coverage --min=80
+
+  assets:
+    name: Сборка фронтенд-ассетов
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Кэш npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - name: PHP 8.3 и Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Зависимости PHP
+        # app.js подключает ESM-бандл Livewire из vendor/, поэтому ассеты
+        # собираются после composer install.
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Установка и сборка
+        run: |
+          npm ci
+          npm run build
+
+  # Паритет транспортов событий (FR-NTF-547, ЧТЗ 9.4): один и тот же набор
+  # кейсов прогоняется против Redis и RabbitMQ. Инфраструктура поднимается
+  # docker compose, брокер — профилем `broker`. Задания quality и assets
+  # не меняются: им брокер не нужен.
+  transport-parity:
+    name: Паритет транспортов (Redis и RabbitMQ)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    env:
+      COMPOSER_ALLOW_SUPERUSER: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Окружение сервиса для compose
+        run: cp services/notifications/.env.example services/notifications/.env
+
+      - name: Инфраструктура pgsql, redis, rabbitmq
+        # Свежий runner создаёт пустой том pgdata, поэтому init-скрипты
+        # готовят базы courier_testing и notifications_testing.
+        run: |
+          docker compose --profile broker up -d --wait pgsql redis rabbitmq
+          docker compose ps
+
+      - name: Образ сервиса оповещений
+        run: docker compose --profile broker build notifications-app
+
+      - name: Запуск сервиса и ожидание готовности
+        run: |
+          docker compose --profile broker up -d notifications-app
+          for attempt in $(seq 1 60); do
+            container=$(docker compose ps -q notifications-app)
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$container" 2>/dev/null || echo starting)
+            if [ "$status" = "healthy" ]; then
+              echo "notifications-app готов"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose --profile broker logs notifications-app
+          exit 1
+
+      - name: Паритет сервиса против RabbitMQ
+        run: docker compose exec -T -e NOTIFICATIONS_TRANSPORT=rabbitmq notifications-app php artisan test --filter=TransportParity --log-junit storage/logs/transport-parity-service-rabbitmq.xml
+
+      - name: Паритет монолита против RabbitMQ
+        # Монолит запускается в образе сервиса: он уже содержит PHP 8.3
+        # с расширениями (включая sockets) и находится в сети compose.
+        # Образ монолита для тестов не нужен: стадия assets требует vendor,
+        # которого у неё нет (отдельная известная проблема сборки).
+        run: |
+          docker compose run --rm --no-deps --user root -e EVENTS_TRANSPORT=rabbitmq -v "$PWD:/monolith" -w /monolith --entrypoint sh notifications-app -c '
+            set -e
+            [ -f .env ] || cp .env.example .env
+            composer install --no-interaction --prefer-dist --no-progress
+            php artisan key:generate --force
+            mkdir -p storage/logs
+            php artisan test --filter=TransportParity --log-junit storage/logs/transport-parity-monolith-rabbitmq.xml
+          '
+
+      - name: Возврат на Redis — сервис
+        run: docker compose exec -T -e NOTIFICATIONS_TRANSPORT=redis notifications-app php artisan test --filter=TransportParity --log-junit storage/logs/transport-parity-service-redis.xml
+
+      - name: Возврат на Redis — монолит
+        run: |
+          docker compose run --rm --no-deps --user root -e EVENTS_TRANSPORT=redis -v "$PWD:/monolith" -w /monolith --entrypoint sh notifications-app -c '
+            set -e
+            [ -f .env ] || cp .env.example .env
+            mkdir -p storage/logs
+            php artisan test --filter=TransportParity --log-junit storage/logs/transport-parity-monolith-redis.xml
+          '
+
+      - name: Логи при падении
+        if: failure()
+        run: |
+          mkdir -p ci-artifacts
+          docker compose --profile broker logs --no-color > ci-artifacts/docker-compose.log || true
+          cp -r services/notifications/storage/logs ci-artifacts/notifications-logs || true
+          cp -r storage/logs ci-artifacts/monolith-logs || true
+
+      - name: Артефакты при падении
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transport-parity-logs
+          path: ci-artifacts
+          if-no-files-found: ignore
+
+      - name: Остановка инфраструктуры
+        if: always()
+        run: docker compose --profile broker down -v

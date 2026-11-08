@@ -1,0 +1,366 @@
+# Курьерская служба: коллекция запросов
+#
+# Формат REST Client (JetBrains HTTP Client, расширение VS Code «REST Client»).
+# Переменные ниже заполняются по ходу: токен подставляется из ответа входа,
+# идентификаторы — из ответов создания.
+#
+# Порядок «демонстрация за 5 минут» — в конце файла.
+
+@baseUrl = http://127.0.0.1:8080
+@token =
+@orderId =
+@assignmentId =
+@shiftId =
+@zoneId =
+@trackingCode =
+@reportFrom = 2026-11-01T00:00:00+03:00
+@reportTo = 2026-12-01T00:00:00+03:00
+@idempotencyKey = demo-key-0001
+
+###
+# Доступ и профиль
+
+### Регистрация отправителя
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Отправитель Из Коллекции",
+  "email": "collection-sender@courier.test",
+  "password": "password123",
+  "password_confirmation": "password123"
+}
+
+### Вход отправителя (токен — в ответе, поле data.token)
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "sender@courier.test",
+  "password": "password"
+}
+
+### Свой профиль
+GET {{baseUrl}}/api/v1/profile
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Изменение профиля
+PATCH {{baseUrl}}/api/v1/profile
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Отправитель Демо"
+}
+
+### Выход
+POST {{baseUrl}}/api/v1/auth/logout
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+# Расчёт и заказы
+
+### Расчёт стоимости по адресам и транспорту
+POST {{baseUrl}}/api/v1/estimates
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "transport": "light",
+  "light_vehicle_kind": "bicycle",
+  "pickup": {
+    "district": "Тверской",
+    "street": "Тверская улица",
+    "house": "1",
+    "latitude": 55.757600,
+    "longitude": 37.605400
+  },
+  "dropoff": {
+    "district": "Арбат",
+    "street": "Улица Арбат",
+    "house": "10",
+    "latitude": 55.751500,
+    "longitude": 37.593800
+  },
+  "parcel": {
+    "weight_grams": 1500,
+    "dimensions": {
+      "length": 30,
+      "width": 20,
+      "height": 10
+    }
+  }
+}
+
+### Создание заказа: ключ повтора обязателен
+POST {{baseUrl}}/api/v1/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+Idempotency-Key: {{idempotencyKey}}
+
+{
+  "transport": "light",
+  "light_vehicle_kind": "bicycle",
+  "pickup": {
+    "district": "Тверской",
+    "street": "Тверская улица",
+    "house": "1",
+    "latitude": 55.757600,
+    "longitude": 37.605400
+  },
+  "dropoff": {
+    "district": "Арбат",
+    "street": "Улица Арбат",
+    "house": "10",
+    "latitude": 55.751500,
+    "longitude": 37.593800
+  },
+  "parcel": {
+    "weight_grams": 1500,
+    "dimensions": {
+      "length": 30,
+      "width": 20,
+      "height": 10
+    }
+  }
+}
+
+### Список своих заказов
+GET {{baseUrl}}/api/v1/orders?limit=20
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Карточка заказа с историей статусов
+GET {{baseUrl}}/api/v1/orders/{{orderId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Отмена заказа до забора
+POST {{baseUrl}}/api/v1/orders/{{orderId}}/cancel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reason": "Планы изменились"
+}
+
+###
+# Диспетчеризация
+
+### Кандидаты на заказ
+GET {{baseUrl}}/api/v1/orders/{{orderId}}/candidates
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Назначение курьера (автоматический подбор)
+POST {{baseUrl}}/api/v1/orders/{{orderId}}/assign
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "strategy": "nearest"
+}
+
+### Переназначение после неудачи
+POST {{baseUrl}}/api/v1/orders/{{orderId}}/reassign
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "strategy": "best_eta"
+}
+
+### Список назначений курьера
+GET {{baseUrl}}/api/v1/assignments?limit=20
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Карточка назначения
+GET {{baseUrl}}/api/v1/assignments/{{assignmentId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+# Действия курьера
+
+### Открыть смену
+POST {{baseUrl}}/api/v1/courier/shifts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "zone_id": null
+}
+
+### Текущая смена
+GET {{baseUrl}}/api/v1/courier/shifts/current
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Закрыть смену
+POST {{baseUrl}}/api/v1/courier/shifts/{{shiftId}}/close
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Принял назначение
+POST {{baseUrl}}/api/v1/assignments/{{assignmentId}}/accept
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Забрал посылку
+POST {{baseUrl}}/api/v1/assignments/{{assignmentId}}/pickup
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Вручил получателю
+POST {{baseUrl}}/api/v1/assignments/{{assignmentId}}/deliver
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Неудачная попытка
+POST {{baseUrl}}/api/v1/assignments/{{assignmentId}}/fail
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reason": "recipient_unavailable",
+  "comment": "Получатель не открыл дверь"
+}
+
+### Геоточка курьера
+POST {{baseUrl}}/api/v1/assignments/{{assignmentId}}/points
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "latitude": 55.7558,
+  "longitude": 37.6173
+}
+
+### Текущие координаты курьера
+POST {{baseUrl}}/api/v1/courier/location
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "latitude": 55.7558,
+  "longitude": 37.6173
+}
+
+###
+# Трекинг
+
+### Трекинг заказа
+GET {{baseUrl}}/api/v1/orders/{{orderId}}/tracking
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Подписанная ссылка публичного трекинга
+GET {{baseUrl}}/api/v1/orders/{{orderId}}/tracking-link
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Публичный трекинг по коду (без токена)
+GET {{baseUrl}}/api/v1/tracking/{{trackingCode}}
+Accept: application/json
+
+###
+# Отчёты и справочник зон
+
+### Отчёт по заказам, выручке и транспорту
+GET {{baseUrl}}/api/v1/reports/orders?from={{reportFrom}}&to={{reportTo}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Список зон
+GET {{baseUrl}}/api/v1/zones
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Создание зоны
+POST {{baseUrl}}/api/v1/zones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "code": "msk-collection",
+  "name": "Зона из коллекции",
+  "boundary": {
+    "type": "rectangle",
+    "south_west": { "latitude": 55.70, "longitude": 37.50 },
+    "north_east": { "latitude": 55.80, "longitude": 37.70 }
+  },
+  "base_fee_amount": 19900,
+  "currency": "RUB",
+  "is_active": true
+}
+
+### Изменение зоны
+PATCH {{baseUrl}}/api/v1/zones/{{zoneId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "is_active": false
+}
+
+###
+# Демонстрация за 5 минут
+#
+# Шаги выполняются по порядку после make up && make fresh && make demo.
+# 1. Вход отправителя — токен уходит в переменную token.
+# 2. Три расчёта по транспорту: on_foot, light, car.
+# 3. Создание заказа с Idempotency-Key и повтор того же запроса.
+# 4. Вход диспетчера, кандидаты, назначение.
+# 5. Вход курьера, смена, accept → pickup → deliver.
+# 6. Публичный трекинг по коду из ответа создания.
+# 7. Отчёт администратора за период по умолчанию.
+
+### Демо 2. Расчёт для пешего курьера
+POST {{baseUrl}}/api/v1/estimates
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "transport": "on_foot",
+  "pickup": { "district": "Тверской", "street": "Тверская улица", "house": "1", "latitude": 55.757600, "longitude": 37.605400 },
+  "dropoff": { "district": "Арбат", "street": "Улица Арбат", "house": "10", "latitude": 55.751500, "longitude": 37.593800 },
+  "parcel": { "weight_grams": 900, "dimensions": { "length": 20, "width": 15, "height": 10 } }
+}
+
+### Демо 3. Повтор создания с тем же ключом и телом (ответ тот же, второй заказ не создаётся)
+POST {{baseUrl}}/api/v1/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+Idempotency-Key: {{idempotencyKey}}
+
+{
+  "transport": "light",
+  "light_vehicle_kind": "bicycle",
+  "pickup": { "district": "Тверской", "street": "Тверская улица", "house": "1", "latitude": 55.757600, "longitude": 37.605400 },
+  "dropoff": { "district": "Арбат", "street": "Улица Арбат", "house": "10", "latitude": 55.751500, "longitude": 37.593800 },
+  "parcel": { "weight_grams": 1500, "dimensions": { "length": 30, "width": 20, "height": 10 } }
+}
+
+### Демо 7. Отчёт администратора (токен администратора)
+GET {{baseUrl}}/api/v1/reports/orders
+Authorization: Bearer {{token}}
+Accept: application/json

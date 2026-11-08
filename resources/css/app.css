@@ -1,0 +1,85 @@
+@import 'tailwindcss';
+@import './tokens.css';
+@import './components/badges.css';
+@import './components/buttons.css';
+@import './components/cards.css';
+@import './components/feedback.css';
+@import './components/forms.css';
+@import './components/lists.css';
+@import './components/modals.css';
+@import './components/navigation.css';
+@import './components/notifications.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+/*
+|--------------------------------------------------------------------------
+| Tailwind v4 ↔ токены
+|--------------------------------------------------------------------------
+|
+| FR-UI-153: утилиты цветов работают поверх токенов, поэтому bg-surface,
+| text-muted, border-subtle и подобные меняются вместе с темой.
+|
+| --color-*: initial отключает палитру Tailwind по умолчанию (FR-UI-151):
+| утилиты палитры (сланец, синий и подобные) больше не генерируются. Исключение —
+| white и black как совместимость со стартовой страницей welcome.blade.php,
+| пока она не заменена боевым экраном; боевые экраны их не используют.
+|
+| Литеральные цвета в этом файле запрещены: они живут только в
+| resources/css/tokens.css (см. комментарий там).
+|
+*/
+
+@theme inline {
+    --color-*: initial;
+
+    --color-white: var(--token-white);
+    --color-black: var(--token-black);
+
+    --color-canvas: var(--token-canvas);
+    --color-surface: var(--token-surface);
+    --color-surface-raised: var(--token-surface-raised);
+    --color-text: var(--token-text);
+    --color-muted: var(--token-muted);
+
+    /* Границы: border-subtle — основной алиас (FR-UI-153). */
+    --color-subtle: var(--token-border);
+    --color-border: var(--token-border);
+    --color-border-strong: var(--token-border-strong);
+    --color-ink-subtle: var(--token-subtle);
+
+    /* Акцент — только навигация и маркер выбранной строки (FR-UI-204). */
+    --color-accent: var(--token-accent);
+    --color-accent-strong: var(--token-accent-strong);
+    --color-accent-soft: var(--token-accent-soft);
+    --color-on-accent: var(--token-on-accent);
+
+    /* Роли действий отделены от акцента (FR-UI-204). */
+    --color-action: var(--token-action-fill);
+    --color-action-hover: var(--token-action-fill-hover);
+    --color-action-muted: var(--token-action-fill-muted);
+    --color-action-text: var(--token-action-text);
+    --color-action-ring: var(--token-action-ring);
+    --color-neutral: var(--token-neutral-fill);
+    --color-neutral-hover: var(--token-neutral-fill-hover);
+
+    /* Состояния: текст и мягкий фон. */
+    --color-success: var(--token-success);
+    --color-success-soft: var(--token-success-soft);
+    --color-warning: var(--token-warning);
+    --color-warning-soft: var(--token-warning-soft);
+    --color-error: var(--token-error);
+    --color-error-soft: var(--token-error-soft);
+    --color-info: var(--token-info);
+    --color-info-soft: var(--token-info-soft);
+
+    /* Фокус и подложка модального слоя. */
+    --color-focus: var(--token-focus);
+    --color-overlay: var(--token-overlay);
+
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}

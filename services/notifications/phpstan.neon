@@ -1,0 +1,25 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 8
+
+    paths:
+        - app
+        - config
+        - database
+        - routes
+        - tests
+
+    excludePaths:
+        - bootstrap/cache
+        - storage
+        - vendor
+
+    treatPhpDocTypesAsCertain: false
+
+    ignoreErrors:
+        # Pest и Laravel TestCase дают «магические» тестовые методы.
+        - '#Call to an undefined method PHPUnit\\Framework\\TestCase::.*#'
+        # Pest 3 не описывает типом цепочку отрицаний expect()->not.
+        - '#Access to an undefined property Pest\\Mixins\\Expectation<.*>::\$not#'

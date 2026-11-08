@@ -1,0 +1,80 @@
+/*
+|--------------------------------------------------------------------------
+| Модальный слой
+|--------------------------------------------------------------------------
+|
+| FR-UI-185: размер окна фиксирован, появление сообщения внутри не двигает
+| рамку. Подложка — токен overlay, панель — поверхность с тенью.
+|
+*/
+
+@layer components {
+    .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        background: var(--token-overlay);
+    }
+
+    .modal-panel {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-width: 30rem;
+        max-height: calc(100vh - 2rem);
+        background: var(--token-surface);
+        border: 1px solid var(--token-border-strong);
+        border-radius: var(--radius);
+        box-shadow: var(--token-shadow-md);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--token-border);
+    }
+
+    .modal-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--token-text);
+    }
+
+    .modal-body {
+        min-height: 5rem;
+        padding: 1rem;
+        color: var(--token-text);
+    }
+
+    .modal-footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--token-border);
+    }
+
+    /* Окно подтверждения лежит поверх обычного модального окна. */
+    .modal-confirm {
+        z-index: 60;
+    }
+
+    .modal-panel:focus-visible {
+        outline: 2px solid var(--token-focus);
+        outline-offset: 2px;
+    }
+}
+
+/* Скрытие модальных слоёв до инициализации Alpine (нет вспышки). */
+[x-cloak] {
+    display: none !important;
+}

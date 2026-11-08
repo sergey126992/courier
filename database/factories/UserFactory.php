@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Database\Factories;
+
+use App\Domain\Identity\LightVehicleKind;
+use App\Domain\Identity\Role;
+use App\Domain\Identity\TransportType;
+use App\Models\CourierProfile;
+use App\Models\SenderProfile;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
+/**
+ * @extends Factory<User>
+ */
+class UserFactory extends Factory
+{
+    /**
+     * The current password being used by the factory.
+     */
+    protected static ?string $password;
+
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
+    public function definition(): array
+    {
+        return [
+            'name' => fake()->name(),
+            'email' => fake()->unique()->safeEmail(),
+            'email_verified_at' => now(),
+            'password' => static::$password ??= Hash::make('password'),
+            'remember_token' => Str::random(10),
+        ];
+    }
+
+    /**
+     * Indicate that the model's email address should be unverified.
+     */
+    public function unverified(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Отправитель вместе с профилем отправителя.
+     */
+    public function sender(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role' => Role::Sender,
+        ])->has(SenderProfile::factory(), 'senderProfile');
+    }
+
+    /**
+     * Курьер вместе с профилем выбранного транспорта.
+     */
+    public function courier(
+        TransportType $transport = TransportType::OnFoot,
+        ?LightVehicleKind $kind = null,
+    ): static {
+        return $this->state(fn (array $attributes): array => [
+            'role' => Role::Courier,
+        ])->has(CourierProfile::factory()->forTransport($transport, $kind), 'courierProfile');
+    }
+
+    /**
+     * Диспетчер (без профиля: профилей отправителя и курьера у него нет).
+     */
+    public function dispatcher(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role' => Role::Dispatcher,
+        ]);
+    }
+
+    /**
+     * Администратор (без профиля: профилей отправителя и курьера у него нет).
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role' => Role::Admin,
+        ]);
+    }
+}

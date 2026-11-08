@@ -1,0 +1,66 @@
+/*
+|--------------------------------------------------------------------------
+| Карточки и панели
+|--------------------------------------------------------------------------
+|
+| FR-UI-145, FR-UI-201: нейтральная поверхность, тонкая граница, единый
+| радиус. Фон панелей не подсвечивается акцентом.
+|
+*/
+
+@layer components {
+    .card {
+        min-width: 0;
+        background: var(--token-surface);
+        border: 1px solid var(--token-border);
+        border-radius: var(--radius);
+    }
+
+    .card-raised {
+        background: var(--token-surface-raised);
+    }
+
+    .card-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--token-border);
+    }
+
+    .card-title {
+        margin: 0;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--token-text);
+    }
+
+    .card-subtitle {
+        margin: 0.125rem 0 0;
+        font-size: 0.75rem;
+        color: var(--token-subtle);
+    }
+
+    .card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .card-footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--token-border);
+    }
+}

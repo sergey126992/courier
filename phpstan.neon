@@ -1,0 +1,25 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 8
+
+    paths:
+        - app
+        - config
+        - database
+        - routes
+        - tests
+
+    excludePaths:
+        - bootstrap/cache
+        - storage
+        - node_modules
+        - vendor
+
+    treatPhpDocTypesAsCertain: false
+
+    ignoreErrors:
+        # Pest и Laravel TestCase дают «магические» методы ($this->get(), expect()).
+        - '#Call to an undefined method Pest\\PendingCalls\\TestCall::.*#'
+        - '#Call to an undefined method PHPUnit\\Framework\\TestCase::.*#'

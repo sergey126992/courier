@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kargo.ru/contracts/notifications/notification-sent.v1.json",
+  "title": "NotificationSent.v1",
+  "description": "Обратное событие об успешной отправке (notification.sent): конверт и payload (FR-NTF-227, ЧТЗ 8.3). Персональных данных нет.",
+  "x-event-type": "notification.sent",
+  "x-schema-version": "v1",
+  "x-stream": "events.notifications",
+  "type": "object",
+  "required": [
+    "message_id",
+    "event_type",
+    "schema_version",
+    "aggregate_type",
+    "aggregate_id",
+    "occurred_at",
+    "payload"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "const": "notification.sent"
+    },
+    "schema_version": {
+      "const": "v1"
+    },
+    "correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9._-]{8,128}$"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "aggregate_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aggregate_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "notification_id",
+        "order_id",
+        "recipient_id",
+        "channel",
+        "status",
+        "attempt",
+        "occurred_at",
+        "correlation_id"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "notification_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "order_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recipient_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "channel": {
+          "enum": [
+            "email",
+            "push"
+          ]
+        },
+        "status": {
+          "const": "sent"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{8,128}$"
+        }
+      }
+    }
+  }
+}

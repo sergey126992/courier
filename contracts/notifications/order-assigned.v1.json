@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kargo.ru/contracts/notifications/order-assigned.v1.json",
+  "title": "OrderAssigned.v1",
+  "description": "Событие назначения курьера (order.assigned): конверт и payload (FR-NTF-223, ЧТЗ 8.3, 8.4). Персональных данных нет.",
+  "x-event-type": "order.assigned",
+  "x-schema-version": "v1",
+  "x-stream": "events.orders",
+  "type": "object",
+  "required": [
+    "message_id",
+    "event_type",
+    "schema_version",
+    "aggregate_type",
+    "aggregate_id",
+    "occurred_at",
+    "payload"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "const": "order.assigned"
+    },
+    "schema_version": {
+      "const": "v1"
+    },
+    "correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9._-]{8,128}$"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "aggregate_type": {
+      "const": "order"
+    },
+    "aggregate_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "order_id",
+        "tracking_code",
+        "sender_id",
+        "status",
+        "occurred_at",
+        "locale",
+        "courier_id",
+        "assignment_id"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "order_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tracking_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sender_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "const": "assigned"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "locale": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 16
+        },
+        "assignment_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "courier_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "assigned_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

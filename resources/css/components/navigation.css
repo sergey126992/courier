@@ -1,0 +1,200 @@
+/*
+|--------------------------------------------------------------------------
+| Оболочка и навигация
+|--------------------------------------------------------------------------
+|
+| FR-UI-202, FR-UI-206: акцент применяется только к активному пункту меню
+| (подчёркивание и цвет текста). Маркер выбранной строки живёт в lists.css.
+|
+*/
+
+@layer components {
+    .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.75rem;
+        padding: 0.625rem 0.75rem;
+        background: var(--token-surface);
+        border-bottom: 1px solid var(--token-border);
+    }
+
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--token-text);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .brand:focus-visible {
+        outline: 2px solid var(--token-focus);
+        outline-offset: 2px;
+    }
+
+    .brand-mark {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: var(--radius);
+        background: var(--token-text);
+        color: var(--token-surface);
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.125rem;
+        min-width: 0;
+    }
+
+    .nav-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.5rem;
+        padding: 0 0.5rem;
+        border-radius: var(--radius);
+        color: var(--token-muted);
+        text-decoration: none;
+    }
+
+    .nav-link:hover {
+        color: var(--token-text);
+    }
+
+    .nav-link:focus-visible {
+        outline: 2px solid var(--token-focus);
+        outline-offset: 2px;
+    }
+
+    .nav-link[aria-current='page'] {
+        color: var(--token-accent-strong);
+        font-weight: 600;
+        box-shadow: inset 0 -2px 0 var(--token-accent);
+    }
+
+    .theme-toggle {
+        display: inline-flex;
+        gap: 2px;
+        padding: 2px;
+        border: 1px solid var(--token-border-strong);
+        border-radius: var(--radius);
+        background: var(--token-surface-raised);
+    }
+
+    .theme-option {
+        min-width: 2.5rem;
+        min-height: 2rem;
+        padding: 0 0.5rem;
+        border: 0;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--token-muted);
+        font: inherit;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .theme-option:focus-visible {
+        outline: 2px solid var(--token-focus);
+        outline-offset: 2px;
+    }
+
+    .theme-option[aria-pressed='true'] {
+        background: var(--token-text);
+        color: var(--token-surface);
+    }
+
+    .user {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    .avatar {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 2rem;
+        height: 2rem;
+        border: 1px solid var(--token-border-strong);
+        border-radius: var(--radius-pill);
+        background: var(--token-surface-raised);
+        color: var(--token-muted);
+        font-size: 0.6875rem;
+        font-weight: 700;
+    }
+
+    .user-name {
+        min-width: 0;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--token-text);
+    }
+
+    .user-role {
+        font-size: 0.6875rem;
+        color: var(--token-subtle);
+    }
+
+    /* Вкладки страницы: role="tablist", активная — aria-selected (FR-UI-178). */
+    .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        border-bottom: 1px solid var(--token-border);
+    }
+
+    .tab {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.75rem;
+        padding: 0 0.75rem;
+        border: 0;
+        border-radius: var(--radius) var(--radius) 0 0;
+        background: transparent;
+        color: var(--token-muted);
+        font: inherit;
+        font-weight: 600;
+        line-height: 1.2;
+        cursor: pointer;
+    }
+
+    .tab:hover {
+        color: var(--token-text);
+    }
+
+    .tab:focus-visible {
+        outline: 2px solid var(--token-focus);
+        outline-offset: 2px;
+    }
+
+    .tab[aria-selected='true'] {
+        color: var(--token-text);
+        box-shadow: inset 0 -2px 0 var(--token-accent);
+    }
+
+    .tabs-panels {
+        min-width: 0;
+        padding-top: 0.75rem;
+    }
+
+    /* Мобильный drawer: вертикальный список в модальном слое (FR-UI-163). */
+    .nav[data-orientation='vertical'] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+    }
+
+    .nav[data-orientation='vertical'] .nav-link {
+        min-height: 2.75rem;
+        padding: 0 0.75rem;
+    }
+}

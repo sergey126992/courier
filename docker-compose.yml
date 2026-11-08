@@ -1,0 +1,414 @@
+name: courier
+
+x-app: &app
+  image: courier-app:local
+  build:
+    context: .
+    target: runtime
+  # Долгоживущие сервисы (app, queue, scheduler) поднимаются заново после аварийного
+  # выхода и после `queue:restart` (эта команда штатно завершает воркер с кодом 0).
+  restart: unless-stopped
+  # Docker Desktop на Windows отдаёт примонтированные файлы как root:root 755,
+  # поэтому в dev-окружении процессы идут от root; сам образ по умолчанию — app.
+  user: "0:0"
+  volumes:
+    - ./:/var/www/html
+    - app-vendor:/var/www/html/vendor
+    - app-storage:/var/www/html/storage
+    - app-bootstrap-cache:/var/www/html/bootstrap/cache
+  environment:
+    APP_ENV: local
+    APP_DEBUG: "true"
+    APP_URL: http://127.0.0.1:8080
+    APP_TIMEZONE: Europe/Moscow
+    APP_LOCALE: ru
+    APP_FALLBACK_LOCALE: en
+    LOG_CHANNEL: stderr
+    DB_CONNECTION: pgsql
+    DB_HOST: pgsql
+    DB_PORT: "5432"
+    DB_DATABASE: courier
+    DB_USERNAME: courier
+    DB_PASSWORD: courier
+    REDIS_CLIENT: predis
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    REDIS_PASSWORD: "null"
+    # retry_after очереди строго больше --timeout воркера, иначе задача выполнится дважды (FR-OPS-107)
+    REDIS_QUEUE_RETRY_AFTER: "90"
+    CACHE_STORE: redis
+    SESSION_DRIVER: redis
+    QUEUE_CONNECTION: redis
+    MAIL_MAILER: smtp
+    MAIL_HOST: mailpit
+    MAIL_PORT: "1025"
+    MAIL_FROM_ADDRESS: no-reply@courier.test
+    MAIL_FROM_NAME: Курьерская служба
+    # Публикатор Outbox и уведомления (FR-NTF-171…173): те же безопасные значения,
+    # что в .env.example, чтобы окружение контейнеров было воспроизводимым.
+    EVENTS_PUBLISH_INTERVAL_SECONDS: "5"
+    EVENTS_PUBLISH_BATCH_SIZE: "100"
+    EVENTS_PUBLISH_MAX_ATTEMPTS: "5"
+    EVENTS_PUBLISH_BACKOFF_SECONDS: "5,15,60,300,900"
+    EVENTS_PUBLISH_LOCK_TTL_SECONDS: "60"
+    EVENTS_SCHEMA_VERSION: "v1"
+    EVENTS_INBOX_RETENTION_DAYS: "30"
+    EVENTS_MAX_PUBLISH_LAG_SECONDS: "60"
+    EVENTS_MAX_UNPROCESSED_COUNT: "0"
+    # Транспорт событий и параметры потоков (FR-NTF-206, FR-OPS-211): те же
+    # безопасные значения, что в .env.example.
+    EVENTS_TRANSPORT: "redis"
+    EVENTS_STREAM_PREFIX: ""
+    EVENTS_STREAM_ORDERS: "events.orders"
+    EVENTS_STREAM_NOTIFICATIONS: "events.notifications"
+    EVENTS_STREAM_CONTACTS: "events.contacts"
+    EVENTS_CONSUMER_GROUP: "notifications-service"
+    EVENTS_CONSUMER_NAME: "notifications-service-1"
+    EVENTS_CONSUME_BATCH_SIZE: "50"
+    EVENTS_PENDING_IDLE_SECONDS: "60"
+    # Опциональный брокер M13 (FR-NTF-541…552): значения по умолчанию безопасны,
+    # транспорт остаётся redis, реальных адресов и секретов здесь нет.
+    RABBITMQ_HOST: "rabbitmq"
+    RABBITMQ_PORT: "5672"
+    RABBITMQ_USER: "guest"
+    RABBITMQ_PASSWORD: "guest"
+    RABBITMQ_VHOST: "/"
+    RABBITMQ_HEARTBEAT: "30"
+    RABBITMQ_PREFETCH: "50"
+    RABBITMQ_MESSAGE_TTL_SECONDS: "300"
+    RABBITMQ_MAX_ATTEMPTS: "5"
+    RABBITMQ_EXCHANGE: "events"
+    RABBITMQ_DLX_EXCHANGE: "events.dlx"
+    # Матрица каналов, пределы попыток и сроки хранения принадлежат сервису
+    # оповещений: в монолите второго отправителя нет (FR-NTF-403, FR-NTF-406).
+    # Служебный API сервиса для прокси-страниц администратора (ЧТЗ 8.2).
+    # Токен совпадает с NOTIFICATIONS_API_TOKEN контейнеров сервиса.
+    NOTIFICATIONS_SERVICE_URL: "http://notifications-app:8000"
+    NOTIFICATIONS_SERVICE_TOKEN: "dev-notifications-token"
+    NOTIFICATIONS_SERVICE_TIMEOUT_SECONDS: "5"
+    NOTIFICATIONS_SERVICE_RETRY_TIMES: "1"
+    NOTIFICATIONS_SERVICE_RETRY_SLEEP_MS: "100"
+    NOTIFICATIONS_ADMIN_PAGE_SIZE: "20"
+  depends_on:
+    pgsql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+# ---------------------------------------------------------------------------
+# Сервис оповещений (M11): отдельное приложение в services/notifications,
+# свой образ, своя база notifications и роль notifications (FR-NTF-211…213).
+# Значения совпадают с services/notifications/.env.example; секретов и
+# реальных адресов в репозитории нет (FR-OPS-212).
+# ---------------------------------------------------------------------------
+x-notifications: &notifications
+  image: courier-notifications:local
+  build:
+    context: ./services/notifications
+    target: runtime
+  restart: unless-stopped
+  # Docker Desktop на Windows отдаёт примонтированные файлы как root:root 755,
+  # поэтому в dev-окружении процессы идут от root; сам образ по умолчанию — app.
+  user: "0:0"
+  volumes:
+    - ./services/notifications:/var/www/html
+    # Общие JSON Schema контрактов монтируются только для чтения (FR-NTF-221).
+    - ./contracts:/var/www/html/contracts:ro
+    - notifications-vendor:/var/www/html/vendor
+    - notifications-storage:/var/www/html/storage
+    - notifications-bootstrap-cache:/var/www/html/bootstrap/cache
+  environment:
+    APP_ENV: local
+    APP_DEBUG: "true"
+    APP_URL: http://127.0.0.1:8081
+    APP_TIMEZONE: Europe/Moscow
+    APP_LOCALE: ru
+    APP_FALLBACK_LOCALE: en
+    LOG_CHANNEL: stderr
+    # Собственная база и роль сервиса: доступа к базе монолита у роли нет.
+    DB_CONNECTION: pgsql
+    DB_HOST: pgsql
+    DB_PORT: "5432"
+    DB_DATABASE: notifications
+    DB_USERNAME: notifications
+    DB_PASSWORD: notifications
+    REDIS_CLIENT: predis
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    REDIS_PASSWORD: "null"
+    CACHE_STORE: array
+    SESSION_DRIVER: array
+    QUEUE_CONNECTION: sync
+    MAIL_MAILER: smtp
+    MAIL_HOST: mailpit
+    MAIL_PORT: "1025"
+    MAIL_FROM_ADDRESS: no-reply@courier.test
+    MAIL_FROM_NAME: Курьерская служба
+    # Транспорт событий, потоки и consumer group (FR-OPS-211).
+    NOTIFICATIONS_TRANSPORT: redis
+    NOTIFICATIONS_STREAM_PREFIX: ""
+    NOTIFICATIONS_STREAM_ORDERS: events.orders
+    NOTIFICATIONS_STREAM_NOTIFICATIONS: events.notifications
+    NOTIFICATIONS_STREAM_CONTACTS: events.contacts
+    NOTIFICATIONS_CONSUMER_GROUP: notifications-service
+    NOTIFICATIONS_CONSUMER_NAME: notifications-service-1
+    NOTIFICATIONS_CONTACTS_CONSUMER_NAME: notifications-service-1-contacts
+    NOTIFICATIONS_CONSUME_BATCH_SIZE: "50"
+    NOTIFICATIONS_PENDING_IDLE_SECONDS: "60"
+    NOTIFICATIONS_BLOCK_MILLISECONDS: "1000"
+    NOTIFICATIONS_RECLAIM_COUNT: "100"
+    # Опциональный брокер M13 (FR-NTF-541…552, ЧТЗ 8.5): адаптер ещё не
+    # подключён, значения безопасны для разработки (FR-NTF-549).
+    RABBITMQ_HOST: "rabbitmq"
+    RABBITMQ_PORT: "5672"
+    RABBITMQ_USER: "guest"
+    RABBITMQ_PASSWORD: "guest"
+    RABBITMQ_VHOST: "/"
+    RABBITMQ_HEARTBEAT: "30"
+    RABBITMQ_PREFETCH: "50"
+    RABBITMQ_MESSAGE_TTL_SECONDS: "300"
+    RABBITMQ_MAX_ATTEMPTS: "5"
+    RABBITMQ_EXCHANGE: "events"
+    RABBITMQ_QUEUE: "notifications.events"
+    RABBITMQ_DLX_EXCHANGE: "events.dlx"
+    RABBITMQ_DLQ_QUEUE: "notifications.dlq"
+    # Политика каналов и тексты (FR-NTF-241…247).
+    NOTIFICATIONS_ENABLED_CHANNELS: "email,push"
+    NOTIFICATIONS_SUPPORTED_LOCALES: "ru"
+    NOTIFICATIONS_LOCALE_FALLBACK: "ru"
+    NOTIFICATIONS_TRACKING_URL: "http://localhost:8000/track/{tracking_code}"
+    # Служебный токен API и путь к общим схемам (FR-OPS-206, FR-NTF-221).
+    NOTIFICATIONS_API_TOKEN: dev-notifications-token
+    NOTIFICATIONS_API_RATE_LIMIT_ATTEMPTS: "60"
+    NOTIFICATIONS_API_RATE_LIMIT_WINDOW_SECONDS: "60"
+    NOTIFICATIONS_SCHEMA_PATH: /var/www/html/contracts/notifications
+    NOTIFICATIONS_SCHEMA_DIALECT: https://json-schema.org/draft/2020-12/schema
+    NOTIFICATIONS_SCHEMA_VERSION: v1
+    # Процессы и отправка: значения безопасны для разработки.
+    NOTIFICATIONS_CONSUMER_SLEEP_SECONDS: "1"
+    NOTIFICATIONS_SENDER_POLL_INTERVAL_SECONDS: "5"
+    NOTIFICATIONS_SENDER_BATCH_SIZE: "50"
+    NOTIFICATIONS_MAX_ATTEMPTS: "5"
+    NOTIFICATIONS_BACKOFF_SECONDS: 10,30,60,120,300
+    NOTIFICATIONS_SEND_TIMEOUT_SECONDS: "30"
+    # Таймауты отправки, подключения к базе и Redis (FR-OPS-205).
+    MAIL_TIMEOUT: "30"
+    NOTIFICATIONS_SENDER_RETRY_AFTER_SECONDS: "1800"
+    DB_CONNECT_TIMEOUT: "5"
+    REDIS_CONNECT_TIMEOUT: "5"
+    REDIS_READ_TIMEOUT: "60"
+    # Сроки хранения и расписание очистки (ЧТЗ 7, п. 8, FR-NTF-267).
+    NOTIFICATIONS_RETENTION_DAYS: "90"
+    NOTIFICATIONS_ATTEMPT_RETENTION_DAYS: "90"
+    NOTIFICATIONS_PUSH_RETENTION_DAYS: "30"
+    NOTIFICATIONS_INBOX_RETENTION_DAYS: "30"
+    NOTIFICATIONS_DEDUP_RETENTION_DAYS: "30"
+    NOTIFICATIONS_PURGE_CRON: "30 3 * * *"
+    # Очередь необработанных, токены устройств и метрики M13 (FR-NTF-508,
+    # FR-NTF-530, FR-OPS-501…508): сроки, лимиты и границы — только окружение.
+    NOTIFICATIONS_DLQ_RETENTION_DAYS: "90"
+    NOTIFICATIONS_DLQ_PAGE_LIMIT: "50"
+    NOTIFICATIONS_DLQ_MAX_PAGE_LIMIT: "200"
+    NOTIFICATIONS_DEVICE_TOKEN_RETENTION_DAYS: "30"
+    NOTIFICATIONS_METRICS_ENABLED: "true"
+    NOTIFICATIONS_METRICS_SNAPSHOT_TTL_SECONDS: "30"
+    NOTIFICATIONS_METRICS_HISTOGRAM_BUCKETS: "0.1,0.5,1,2,5,10"
+    # Снимок метрик (FR-OPS-508) общий для процессов отправки, расписания
+    # и HTTP, поэтому хранится в Redis, а не в кэше-массиве процесса.
+    NOTIFICATIONS_METRICS_SNAPSHOT_CRON: "* * * * *"
+    NOTIFICATIONS_METRICS_CACHE_STORE: "redis"
+    NOTIFICATIONS_METRICS_CACHE_PREFIX: "notifications:metrics:"
+    # Push-провайдер M13 (FR-NTF-521…524): по умолчанию fake, креды FCM
+    # задаются только окружением и в репозитории не хранятся (FR-NTF-522).
+    NOTIFICATIONS_PUSH_PROVIDER: fake
+    NOTIFICATIONS_PUSH_FAKE_FAIL_RECIPIENTS: ""
+    FCM_PROJECT_ID: ""
+    FCM_CREDENTIALS_PATH: ""
+    FCM_TIMEOUT_SECONDS: "10"
+    FCM_RETRY_TIMES: "2"
+    FCM_RETRY_SLEEP_MS: "200"
+    # Предпочтения и цепочка замещения M12 (FR-OPS-421, FR-OPS-422, ЧТЗ 8.5):
+    # безопасные значения, секретов и реальных адресов здесь нет.
+    NOTIFICATIONS_PREFERENCES_DEFAULT_TIMEZONE: Europe/Moscow
+    NOTIFICATIONS_PREFERENCES_CHANNEL_PRIORITY: push,telegram,email
+    NOTIFICATIONS_PREFERENCES_MAX_FALLBACK_DEPTH: "3"
+    NOTIFICATIONS_FALLBACK_ERROR_CODES: TELEGRAM_CHAT_NOT_FOUND,TELEGRAM_REQUEST_REJECTED,NOTIFICATION_CHANNEL_UNAVAILABLE,NOTIFICATION_PROVIDER_REJECTED,NOTIFICATION_DEVICE_UNREGISTERED,NOTIFICATION_PUSH_TOKEN_MISSING
+    NOTIFICATIONS_CRITICAL_EVENT_TYPES: order.delivered,order.failed
+    NOTIFICATIONS_QUIET_HOURS_CHANNELS: push,telegram
+    NOTIFICATIONS_SENDER_EVENT_TYPES: order.created,order.assigned,order.picked_up,order.delivered,order.failed,order.cancelled
+    NOTIFICATIONS_COURIER_EVENT_TYPES: order.assigned,order.cancelled
+    NOTIFICATIONS_DISPATCHER_EVENT_TYPES: ""
+    NOTIFICATIONS_ADMIN_EVENT_TYPES: ""
+    # Канал Telegram M12: токен и секрет вебхука пусты, `telegram` в
+    # enabled_channels не входит — канал включается осознанно (FR-OPS-423, 425).
+    NOTIFICATIONS_TELEGRAM_BOT_TOKEN: ""
+    NOTIFICATIONS_TELEGRAM_BOT_USERNAME: ""
+    NOTIFICATIONS_TELEGRAM_API_URL: https://api.telegram.org
+    NOTIFICATIONS_TELEGRAM_CLIENT: http
+    NOTIFICATIONS_TELEGRAM_TIMEOUT_SECONDS: "10"
+    NOTIFICATIONS_TELEGRAM_RETRIES: "2"
+    NOTIFICATIONS_TELEGRAM_MESSAGE_LIMIT: "4096"
+    NOTIFICATIONS_TELEGRAM_RETRY_AFTER_DEFAULT_SECONDS: "30"
+    NOTIFICATIONS_TELEGRAM_LINK_TOKEN_TTL_SECONDS: "900"
+    NOTIFICATIONS_TELEGRAM_LINK_TOKEN_RETENTION_DAYS: "7"
+    NOTIFICATIONS_TELEGRAM_UPDATES_MODE: polling
+    NOTIFICATIONS_TELEGRAM_POLL_TIMEOUT_SECONDS: "25"
+    NOTIFICATIONS_TELEGRAM_POLL_BATCH_SIZE: "50"
+    NOTIFICATIONS_TELEGRAM_POLL_INTERVAL_SECONDS: "1"
+    NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET: ""
+    NOTIFICATIONS_TELEGRAM_WEBHOOK_URL: ""
+    # Пороги состояния сервиса для /health (FR-OPS-204).
+    NOTIFICATIONS_HEALTH_LAG_THRESHOLD_SECONDS: "300"
+    NOTIFICATIONS_HEALTH_PENDING_THRESHOLD: "100"
+  depends_on:
+    pgsql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  app:
+    <<: *app
+    command: ["php-fpm"]
+    expose:
+      - "9000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  pgsql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: courier
+      POSTGRES_USER: courier
+      POSTGRES_PASSWORD: courier
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/pgsql/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U courier -d courier"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  # Опциональный брокер M13 (FR-NTF-546): поднимается только профилем `broker`.
+  # Без профиля основной запуск и демонстрация идут на Redis. Логин, пароль
+  # и vhost приходят из окружения хоста: в репозитории секретов нет
+  # (FR-NTF-549). Management-плагин даёт интерфейс на 15672.
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    profiles: ["broker"]
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER:-guest}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:-guest}"
+      RABBITMQ_DEFAULT_VHOST: "${RABBITMQ_VHOST:-/}"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  queue:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "--tries=3", "--timeout=60"]
+
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  # Сервис оповещений: веб-процесс API (FR-NTF-215), потребитель потока
+  # и расписание. Каждый контейнер перезапускается независимо от монолита.
+  notifications-app:
+    <<: *notifications
+    # Встроенный сервер Laravel: у сервиса нет статики и панелей.
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+    ports:
+      - "8081:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8000/up || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+
+  notifications-worker:
+    <<: *notifications
+    command: ["php", "artisan", "notifications:consume"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan notifications:consume' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+
+  notifications-scheduler:
+    <<: *notifications
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+
+  # Процесс бота Telegram (FR-NTF-442, ЧТЗ 8.6): long polling идёт отдельно
+  # от поллера отправки. Контейнер включается только профилем `telegram`,
+  # поэтому при выключенном канале он не запускается и не циклится.
+  # Токен и имя бота берутся из окружения хоста: в репозитории их нет
+  # (FR-NTF-441). Без них самопроверка при старте останавливает процесс
+  # с понятной ошибкой без секретов.
+  notifications-telegram:
+    <<: *notifications
+    profiles: ["telegram"]
+    command: ["php", "artisan", "notifications:telegram:poll"]
+    environment:
+      NOTIFICATIONS_TELEGRAM_BOT_TOKEN: "${NOTIFICATIONS_TELEGRAM_BOT_TOKEN:-}"
+      NOTIFICATIONS_TELEGRAM_BOT_USERNAME: "${NOTIFICATIONS_TELEGRAM_BOT_USERNAME:-}"
+      NOTIFICATIONS_TELEGRAM_UPDATES_MODE: "polling"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan notifications:telegram:poll' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+
+volumes:
+  pgdata:
+  app-vendor:
+  app-storage:
+  app-bootstrap-cache:
+  notifications-vendor:
+  notifications-storage:
+  notifications-bootstrap-cache:

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         enforceTimeLimit="true"
+         defaultTimeLimit="120"
+         timeoutForSmallTests="60"
+         timeoutForMediumTests="120"
+         timeoutForLargeTests="300"
+         failOnRisky="true"
+         failOnWarning="true"
+>
+    <!--
+        Лимиты времени — предохранитель от зависаний, а не оценка скорости:
+        small получает 60 с, потому что arch-проверки сканируют классы
+        приложения и на холодном старте контейнера заметно медленнее.
+        defaultTimeLimit страхует тесты без объявленного размера.
+        failOnRisky/failOnWarning: Pest 3.8 не учитывает их в коде возврата,
+        поэтому в CI отдельно проверяется отсутствие «risky» в выводе.
+    -->
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+        <testsuite name="Arch">
+            <directory>tests/Arch</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <!--
+            Переменные задаются через server, а не env: Laravel читает $_SERVER
+            раньше $_ENV, а окружение контейнера попадает именно в $_SERVER.
+            DB_HOST без принудительного значения: CI подменяет хост на 127.0.0.1.
+        -->
+        <server name="APP_ENV" value="testing"/>
+        <server name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <server name="BCRYPT_ROUNDS" value="4"/>
+        <server name="BROADCAST_CONNECTION" value="null"/>
+        <server name="CACHE_STORE" value="array"/>
+        <server name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="pgsql"/>
+        <server name="DB_PORT" value="5432"/>
+        <server name="DB_DATABASE" value="courier_testing"/>
+        <server name="DB_USERNAME" value="courier"/>
+        <server name="DB_PASSWORD" value="courier"/>
+        <server name="DB_URL" value=""/>
+        <!-- Транспорт событий в тестах — in-memory (FR-NTF-206): реальный Redis
+             не нужен, а внешние ключи контейнера не должны переопределять значение. -->
+        <server name="EVENTS_TRANSPORT" value="in-memory" force="true"/>
+        <server name="MAIL_MAILER" value="array"/>
+        <server name="QUEUE_CONNECTION" value="sync"/>
+        <server name="SESSION_DRIVER" value="array"/>
+        <server name="PULSE_ENABLED" value="false"/>
+        <server name="TELESCOPE_ENABLED" value="false"/>
+        <server name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

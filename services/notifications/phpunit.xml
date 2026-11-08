@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         enforceTimeLimit="true"
+         defaultTimeLimit="120"
+         timeoutForSmallTests="60"
+         timeoutForMediumTests="120"
+         timeoutForLargeTests="300"
+         failOnRisky="true"
+         failOnWarning="true"
+>
+    <!--
+        Тесты сервиса оповещений не ходят во внешние зависимости: база и Redis
+        проверяются интеграционными тестами отдельного прогона, а unit/feature
+        работают на конфигурации и фейках (правила ЧТЗ 9.7).
+    -->
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <server name="APP_ENV" value="testing"/>
+        <server name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <server name="BCRYPT_ROUNDS" value="4"/>
+        <server name="BROADCAST_CONNECTION" value="null"/>
+        <server name="CACHE_STORE" value="array" force="true"/>
+        <server name="SESSION_DRIVER" value="array" force="true"/>
+        <server name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <server name="MAIL_MAILER" value="array" force="true"/>
+        <server name="DB_CONNECTION" value="pgsql" force="true"/>
+        <server name="DB_HOST" value="pgsql" force="true"/>
+        <server name="DB_PORT" value="5432" force="true"/>
+        <server name="DB_DATABASE" value="notifications_testing" force="true"/>
+        <server name="DB_USERNAME" value="notifications" force="true"/>
+        <server name="DB_PASSWORD" value="notifications" force="true"/>
+        <server name="DB_URL" value=""/>
+        <!-- Значения транспорта фиксированы, чтобы проверка чтения конфигурации
+             не зависела от переменных окружения контейнера. -->
+        <server name="NOTIFICATIONS_CONSUMER_GROUP" value="notifications-service-test" force="true"/>
+        <!-- Снимок метрик M13 хранится в кэше; в тестах это массив в памяти,
+             а не Redis: тесты не ходят в сеть (ЧТЗ 9.7). -->
+        <server name="NOTIFICATIONS_METRICS_CACHE_STORE" value="array" force="true"/>
+        <server name="NOTIFICATIONS_STREAM_ORDERS" value="events.orders.test" force="true"/>
+        <server name="PULSE_ENABLED" value="false"/>
+        <server name="TELESCOPE_ENABLED" value="false"/>
+        <server name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

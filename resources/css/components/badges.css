@@ -1,0 +1,51 @@
+/*
+|--------------------------------------------------------------------------
+| Бейджи статусов
+|--------------------------------------------------------------------------
+|
+| FR-UI-158, FR-UI-203: подпись обязательна, цвет — только дополнение.
+| Мягкие фоны состояний берутся из токенов.
+|
+*/
+
+@layer components {
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        max-width: 100%;
+        padding: 0.0625rem 0.5rem;
+        border: 1px solid var(--token-border-strong);
+        border-radius: var(--radius-pill);
+        background: var(--token-surface);
+        color: var(--token-muted);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        line-height: 1.5;
+        white-space: normal;
+    }
+
+    .badge-success {
+        border-color: transparent;
+        background: var(--token-success-soft);
+        color: var(--token-success);
+    }
+
+    .badge-warning {
+        border-color: transparent;
+        background: var(--token-warning-soft);
+        color: var(--token-warning);
+    }
+
+    .badge-error {
+        border-color: transparent;
+        background: var(--token-error-soft);
+        color: var(--token-error);
+    }
+
+    .badge-info {
+        border-color: transparent;
+        background: var(--token-info-soft);
+        color: var(--token-info);
+    }
+}

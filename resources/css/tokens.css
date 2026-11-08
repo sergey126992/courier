@@ -1,0 +1,122 @@
+/*
+|--------------------------------------------------------------------------
+| Токены оформления: светлая и тёмная тема
+|--------------------------------------------------------------------------
+|
+| ЭТО ЕДИНСТВЕННОЕ МЕСТО В БОЕВЫХ СТИЛЯХ, ГДЕ ДОПУСТИМЫ ЛИТЕРАЛЬНЫЕ ЦВЕТА
+| (#hex, rgb(), hsl(), oklch()).
+|
+| Причина: токены по определению содержат конкретные значения, а guard-тест
+| tests/Arch/UiThemeGuardTest.php (FR-UI-151, FR-UI-153) требует, чтобы
+| resources/css/app.css, resources/css/components/**.css и боевые
+| Blade-шаблоны работали только через var(--token-*) и не использовали
+| палитру Tailwind по умолчанию. Исключения теста — этот файл и
+| preview-контур (resources/css/preview.css, resources/views/preview/**),
+| который остаётся локальным эталоном и в боевых экранах не используется.
+|
+| Значения согласованы с ЧТЗ 4.11 (FR-UI-201…206) и эталоном
+| resources/css/preview.css (Вариант 1). Тема переключается атрибутом
+| data-theme на <html> ('light' | 'dark'); значение по умолчанию берётся из
+| config('ui.theme.default'). Слои: @layer components в ресурсах компонентов
+| идёт после утилит Tailwind, поэтому утилиты раскладки остаются
+| приоритетнее.
+|
+*/
+
+:root,
+[data-theme='light'] {
+    /* Нейтральная шкала и поверхности */
+    --token-canvas: #f4f4f5;
+    --token-surface: #ffffff;
+    --token-surface-raised: #fafafa;
+    --token-text: #18181b;
+    --token-muted: #52525b;
+    --token-subtle: #71717a;
+    --token-border: #e4e4e7;
+    --token-border-strong: #d4d4d8;
+
+    /* Границы интерактивных элементов (поля, чекбоксы, вторичные кнопки).
+       FR-UI-156 требует ≥ 3:1 к поверхности, поэтому эта роль темнее
+       декоративного эталона preview: расхождение только по границам полей
+       осознанное, вид остальных поверхностей повторяет Вариант 1. */
+    --token-border-control: #82828b;
+
+    /* Акцент: только навигация и маркер выбранной строки (FR-UI-202, 204) */
+    --token-accent: #c2410c;
+    --token-accent-strong: #9a3412;
+    --token-accent-soft: #ffedd5;
+    --token-on-accent: #ffffff;
+
+    /* Основное и вторичное действие (FR-UI-204) */
+    --token-action-fill: #9a3412;
+    --token-action-fill-hover: #7c2d12;
+    --token-action-fill-muted: #78716c;
+    --token-action-text: #ffffff;
+    --token-action-ring: #18181b;
+    --token-neutral-fill: #e4e4e7;
+    --token-neutral-fill-hover: #d4d4d8;
+
+    /* Состояния: текст + мягкий фон (FR-UI-152, 203) */
+    --token-success: #15803d;
+    --token-success-soft: #dcfce7;
+    --token-warning: #854d0e;
+    --token-warning-soft: #fef3c7;
+    --token-error: #b91c1c;
+    --token-error-soft: #fee2e2;
+    --token-info: #1d4ed8;
+    --token-info-soft: #dbeafe;
+
+    /* Фокус, тени, подложка модального слоя */
+    --token-focus: #18181b;
+    --token-overlay: rgb(9 9 11 / 0.5);
+    --token-shadow-sm: 0 1px 2px 0 rgb(24 24 27 / 0.08);
+    --token-shadow-md: 0 10px 30px -12px rgb(24 24 27 / 0.24);
+
+    /* Совместимость со стартовой страницей Laravel (welcome.blade.php).
+       Не роли интерфейса: боевые экраны используют только токены выше. */
+    --token-white: #ffffff;
+    --token-black: #000000;
+
+    /* Геометрия: FR-UI-204 — радиус 0.625rem */
+    --radius: 0.625rem;
+    --radius-pill: 999px;
+}
+
+[data-theme='dark'] {
+    --token-canvas: #09090b;
+    --token-surface: #18181b;
+    --token-surface-raised: #1f1f23;
+    --token-text: #fafafa;
+    --token-muted: #b4b4bb;
+    --token-subtle: #a1a1aa;
+    --token-border: #27272a;
+    --token-border-strong: #3f3f46;
+    --token-border-control: #71717a;
+
+    --token-accent: #f97316;
+    --token-accent-strong: #fdba74;
+    --token-accent-soft: #3f2a1a;
+    --token-on-accent: #18181b;
+
+    --token-action-fill: #c2410c;
+    --token-action-fill-hover: #9a3412;
+    --token-action-fill-muted: #57534e;
+    --token-action-text: #ffffff;
+    --token-action-ring: #fafafa;
+    --token-neutral-fill: #27272a;
+    --token-neutral-fill-hover: #3f3f46;
+
+    --token-success: #4ade80;
+    --token-success-soft: #16351f;
+    --token-warning: #fbbf24;
+    --token-warning-soft: #3a2b0a;
+    --token-error: #f87171;
+    --token-error-soft: #3b1414;
+    --token-info: #60a5fa;
+    --token-info-soft: #172554;
+
+    --token-focus: #fafafa;
+    --token-overlay: rgb(0 0 0 / 0.7);
+    --token-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+    --token-shadow-md: 0 12px 32px -12px rgb(0 0 0 / 0.7);
+}
