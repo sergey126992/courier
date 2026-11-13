@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
+use Livewire\Livewire;
 use Symfony\Component\HttpFoundation\Response;
 
 /*
@@ -69,6 +70,12 @@ it('отдаёт одинаковую страницу 404 для чужого �
     $visitor = User::factory()->courier()->create();
 
     $foreign = $this->actingAs($visitor)->get('/test/orders/'.(string) $owner->getKey());
+
+    // Livewire 4 отдаёт блок @livewireStyles только один раз на экземпляр
+    // приложения, а тест переиспользует его. Сбрасываем состояние так же,
+    // как это происходит на новом HTTP-запросе в рабочем окружении.
+    Livewire::flushState();
+
     $missing = $this->actingAs($visitor)->get('/test/users/999999999');
 
     expectHtmlErrorPage($foreign, 404);

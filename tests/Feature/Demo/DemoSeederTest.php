@@ -2,15 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Actions\Dispatch\AssignCourier;
+use App\Actions\Dispatch\FindCouriers;
 use App\Domain\Dispatch\AssignmentStatus;
 use App\Domain\Identity\Role;
 use App\Domain\Identity\TransportType;
+use App\Domain\Order\OrderNumber;
 use App\Domain\Order\OrderStatus;
 use App\Models\Dispatch\Assignment;
 use App\Models\Dispatch\CourierShift;
 use App\Models\Geography\ServiceZone;
 use App\Models\Order\DeliveryOrder;
 use App\Models\Order\OrderStatusHistory;
+use App\Models\Tracking\CourierLastPosition;
 use App\Models\Tracking\TrackingPoint;
 use App\Models\User;
 use Database\Seeders\DemoSeeder;
@@ -26,6 +30,29 @@ function seedDemo(): void
 {
     app(GeographyDemoSeeder::class)->run();
     app(DemoSeeder::class)->run();
+}
+
+/**
+ * Идентификаторы свободных курьеров: открытая смена и нет активного назначения.
+ *
+ * @return list<int>
+ */
+function freeCourierIds(): array
+{
+    $ids = DB::table('users')
+        ->join('courier_shifts', 'courier_shifts.courier_id', '=', 'users.id')
+        ->whereNull('courier_shifts.ended_at')
+        ->whereNotExists(static function ($query): void {
+            $query->selectRaw('1')
+                ->from('assignments')
+                ->whereColumn('assignments.courier_id', 'users.id')
+                ->whereIn('assignments.status', AssignmentStatus::activeValues());
+        })
+        ->orderBy('users.id')
+        ->pluck('users.id')
+        ->all();
+
+    return array_map(static fn ($id): int => (int) $id, $ids);
 }
 
 it('создаёт учётные записи всех ролей с профилями', function (): void {
@@ -134,7 +161,105 @@ it('оставляет у курьера не больше одного акти
         expect((int) $row->total)->toBe(1);
     }
 
-    expect($active)->toHaveCount(6);
+    expect($active)->toHaveCount(3);
+});
+
+it('оставляет трёх свободных курьеров с открытой сменой', function (): void {
+    seedDemo();
+
+    $expected = User::query()
+        ->whereIn('email', [
+            'courier@courier.test',
+            'courier3@courier.test',
+            'courier6@courier.test',
+        ])
+        ->orderBy('id')
+        ->pluck('id')
+        ->map(static fn ($id): int => (int) $id)
+        ->all();
+
+    expect(freeCourierIds())->toBe($expected)
+        ->and($expected)->toHaveCount(3);
+});
+
+it('даёт каждому свободному курьеру последнюю позицию', function (): void {
+    seedDemo();
+
+    $free = freeCourierIds();
+
+    expect($free)->toHaveCount(3)
+        ->and(CourierLastPosition::query()->count())->toBe(3);
+
+    foreach ($free as $courierId) {
+        expect(CourierLastPosition::query()->where('courier_id', $courierId)->exists())->toBeTrue();
+    }
+});
+
+it('подбирает кандидатов на созданный light-заказ и разводит правила', function (): void {
+    seedDemo();
+
+    $order = DeliveryOrder::query()
+        ->where('status', OrderStatus::Created->value)
+        ->where('transport_type', TransportType::Light->value)
+        ->orderBy('number')
+        ->firstOrFail();
+
+    $nearest = app(FindCouriers::class)->handle($order, 'nearest')->candidates();
+    $bestEta = app(FindCouriers::class)->handle($order, 'best_eta')->candidates();
+
+    $nearId = (int) User::query()->where('email', 'courier@courier.test')->value('id');
+    $fastId = (int) User::query()->where('email', 'courier3@courier.test')->value('id');
+
+    expect(count($nearest))->toBeGreaterThanOrEqual(2)
+        ->and(count($bestEta))->toBeGreaterThanOrEqual(2)
+        ->and($nearest[0]->courierId())->toBe($nearId)
+        ->and($bestEta[0]->courierId())->toBe($fastId)
+        ->and($nearest[0]->distanceToPickupKm())->toBeLessThan((float) $nearest[1]->distanceToPickupKm())
+        ->and($bestEta[0]->pickupApproachMinutes())->toBeLessThan((int) $bestEta[1]->pickupApproachMinutes());
+});
+
+it('назначает курьера на демо-заказ без ошибки формата номера', function (): void {
+    seedDemo();
+
+    $dispatcher = User::query()->where('email', 'dispatcher@courier.test')->firstOrFail();
+    $order = DeliveryOrder::query()
+        ->where('status', OrderStatus::Created->value)
+        ->where('transport_type', TransportType::Light->value)
+        ->orderBy('number')
+        ->firstOrFail();
+
+    $before = Assignment::query()->count();
+
+    // Регрессия: восстановление агрегата по демо-номеру не должно падать.
+    $assignment = app(AssignCourier::class)->handle($order, $dispatcher, null, null);
+
+    expect($assignment->order_id)->toBe($order->getKey())
+        ->and($assignment->status)->toBe(AssignmentStatus::Assigned)
+        ->and($order->refresh()->status)->toBe(OrderStatus::Assigned)
+        ->and(Assignment::query()->count())->toBe($before + 1);
+});
+
+it('выдаёт демо-заказам номера в доменном формате', function (): void {
+    seedDemo();
+
+    $numbers = DeliveryOrder::query()->orderBy('number')->pluck('number');
+
+    expect($numbers)->toHaveCount(20);
+
+    foreach ($numbers as $number) {
+        expect(OrderNumber::fromString((string) $number)->value())->toBe((string) $number);
+    }
+});
+
+it('не дублирует последние позиции при повторном запуске', function (): void {
+    seedDemo();
+
+    $before = CourierLastPosition::query()->count();
+
+    $this->seed(DemoSeeder::class);
+
+    expect($before)->toBe(3)
+        ->and(CourierLastPosition::query()->count())->toBe($before);
 });
 
 it('открывает смены курьеров без пересечений', function (): void {
@@ -155,6 +280,7 @@ it('повторный запуск не создаёт дубликатов', f
         'assignments' => Assignment::query()->count(),
         'shifts' => CourierShift::query()->count(),
         'points' => TrackingPoint::query()->count(),
+        'positions' => CourierLastPosition::query()->count(),
     ];
 
     $this->seed(DemoSeeder::class);
@@ -165,7 +291,8 @@ it('повторный запуск не создаёт дубликатов', f
         ->and(OrderStatusHistory::query()->count())->toBe($counts['history'])
         ->and(Assignment::query()->count())->toBe($counts['assignments'])
         ->and(CourierShift::query()->count())->toBe($counts['shifts'])
-        ->and(TrackingPoint::query()->count())->toBe($counts['points']);
+        ->and(TrackingPoint::query()->count())->toBe($counts['points'])
+        ->and(CourierLastPosition::query()->count())->toBe($counts['positions']);
 });
 
 it('даёт одинаковые номера и коды при фиксированном времени', function (): void {
@@ -182,7 +309,7 @@ it('даёт одинаковые номера и коды при фиксиро
         $second = DeliveryOrder::query()->orderBy('number')->pluck('tracking_code', 'number')->all();
 
         expect($second)->toBe($first)
-            ->and(array_key_first($first))->toBe('CRG-2026-D0001');
+            ->and(array_key_first($first))->toBe('CRG-2026-900001');
     } finally {
         Carbon::setTestNow();
     }
@@ -216,7 +343,7 @@ it('печатает учётные записи и ключевые данны�
 
     $this->artisan('demo:accounts')
         ->expectsOutputToContain('sender@courier.test')
-        ->expectsOutputToContain('CRG-2026-D0001')
+        ->expectsOutputToContain('CRG-2026-900001')
         ->assertSuccessful();
 });
 

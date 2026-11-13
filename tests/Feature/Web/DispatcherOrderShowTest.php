@@ -7,6 +7,7 @@ use App\Models\Order\DeliveryOrder;
 use App\Models\User;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 
 /*
 |--------------------------------------------------------------------------
@@ -61,6 +62,12 @@ it('не отличает несуществующий заказ от отсу�
     $this->actingAs(User::factory()->dispatcher()->create());
 
     $first = $this->get('/dispatcher/orders/999998');
+
+    // Livewire 4 отдаёт блок @livewireStyles только один раз на экземпляр
+    // приложения, а тест переиспользует его. Сбрасываем состояние так же,
+    // как это происходит на новом HTTP-запросе в рабочем окружении.
+    Livewire::flushState();
+
     $second = $this->get('/dispatcher/orders/999999');
 
     $first->assertNotFound();

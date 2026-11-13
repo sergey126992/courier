@@ -125,7 +125,10 @@ final class NotificationSendQueue
         $case = 'CASE '.self::LAST_ATTEMPT.'.attempt';
 
         foreach (array_values($delays) as $index => $delay) {
-            $case .= ' WHEN '.($index + 1).' THEN CAST(? AS numeric)';
+            // Номер попытки тоже привязка: так SQL остаётся набором литералов
+            // (требование literal-string у whereRaw), а значения неизменны.
+            $case .= ' WHEN ? THEN CAST(? AS numeric)';
+            $bindings[] = $index + 1;
             $bindings[] = $delay;
         }
 

@@ -36,6 +36,7 @@ final readonly class TrackingCode
     /**
      * Новый случайный код: 16 шестнадцатеричных символов после префикса.
      */
+    #[\NoDiscard]
     public static function generate(): self
     {
         return new self(self::PREFIX.bin2hex(random_bytes(self::RANDOM_BYTES)));
@@ -44,6 +45,7 @@ final readonly class TrackingCode
     /**
      * @throws InvalidTrackingCode формат не соответствует trk_ + случайная часть
      */
+    #[\NoDiscard]
     public static function fromString(string $value): self
     {
         if (preg_match(self::PATTERN, $value) !== 1) {

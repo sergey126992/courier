@@ -152,6 +152,12 @@ it('не меняет данные при повторном открытии', 
     $updatedAt = (string) $order->updated_at;
 
     $first = $this->get($url)->assertOk();
+
+    // Livewire 4 отдаёт блок @livewireStyles только один раз на экземпляр
+    // приложения, а тест переиспользует его. Сбрасываем состояние так же,
+    // как это происходит на новом HTTP-запросе в рабочем окружении.
+    Livewire::flushState();
+
     $second = $this->get($url)->assertOk();
 
     expect($second->getContent())->toBe($first->getContent())

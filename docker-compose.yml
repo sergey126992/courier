@@ -284,14 +284,20 @@ services:
     depends_on:
       - app
 
+  # PostgreSQL 18. Образ 18 объявляет версионный PGDATA (/var/lib/postgresql/18/docker),
+  # а точкой монтирования VOLUME служит /var/lib/postgresql, поэтому том подключён
+  # к /var/lib/postgresql, а не к /var/lib/postgresql/data, как было на 16.
   pgsql:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: courier
       POSTGRES_USER: courier
       POSTGRES_PASSWORD: courier
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Новый том pgdata18: кластер 18 инициализируется с нуля и прогоняет
+      # init-скрипты. Прежний том pgdata от PostgreSQL 16 не удаляется и
+      # остаётся для отката на postgres:16-alpine.
+      - pgdata18:/var/lib/postgresql
       - ./docker/pgsql/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
@@ -405,7 +411,10 @@ services:
       start_period: 20s
 
 volumes:
+  # Том PostgreSQL 16 — не удаляется: нужен для отката на прежний образ.
   pgdata:
+  # Рабочий том PostgreSQL 18.
+  pgdata18:
   app-vendor:
   app-storage:
   app-bootstrap-cache:

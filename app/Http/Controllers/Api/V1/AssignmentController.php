@@ -23,6 +23,7 @@ use App\Models\Order\DeliveryOrder;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use LogicException;
 
 /**
  * Назначение и переназначение курьера (ЧТЗ 8.1, 8.2).
@@ -95,16 +96,20 @@ final class AssignmentController extends Controller
             throw ApiException::forbidden();
         }
 
-        $active = implode(', ', array_map(
-            static fn (string $status): string => "'".$status."'",
-            AssignmentStatus::activeValues(),
-        ));
+        // Ранжирование «активные сверху». selectRaw принимает только literal-string,
+        // а привязка значения ломает курсорную пагинацию: она пересобирает условие
+        // и теряет соответствие параметров (SQLSTATE 08P01). Совпадение литерала
+        // с активными статусами домена проверяется ветвью default.
+        $activeRank = match (AssignmentStatus::activeValues()) {
+            ['assigned', 'accepted', 'picked_up'] => "(CASE WHEN status IN ('assigned', 'accepted', 'picked_up') THEN 0 ELSE 1 END) AS active_rank",
+            default => throw new LogicException('Набор активных статусов назначения изменился: обновите SQL ранжирования в AssignmentController.'),
+        };
 
         $query = Assignment::query()
             ->where('courier_id', $user->getKey())
             ->with('order')
             ->select('assignments.*')
-            ->selectRaw('(CASE WHEN status IN ('.$active.') THEN 0 ELSE 1 END) AS active_rank')
+            ->selectRaw($activeRank)
             ->orderBy('active_rank')
             ->orderByDesc('assigned_at')
             ->orderByDesc('id');

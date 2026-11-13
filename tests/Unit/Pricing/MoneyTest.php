@@ -76,9 +76,10 @@ it('сравнивает суммы целиком вместе с валюто�
 it('не изменяет исходную сумму при операциях', function (): void {
     $money = Money::rub(1000);
 
-    $money->plus(Money::rub(500));
-    $money->minus(Money::rub(500));
-    $money->multipliedBy(2.5);
+    // Результат операций отбрасываем осознанно: проверяется неизменность исходной суммы.
+    (void) $money->plus(Money::rub(500));
+    (void) $money->minus(Money::rub(500));
+    (void) $money->multipliedBy(2.5);
 
     expect($money->amount())->toBe(1000);
 });

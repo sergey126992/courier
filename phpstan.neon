@@ -20,6 +20,6 @@ parameters:
     treatPhpDocTypesAsCertain: false
 
     ignoreErrors:
-        # Pest и Laravel TestCase дают «магические» методы ($this->get(), expect()).
+        # В Pest 4 магические методы TestCall ($this->get(), expect())
+        # не описаны PHPDoc, поэтому исключение нужно.
         - '#Call to an undefined method Pest\\PendingCalls\\TestCall::.*#'
-        - '#Call to an undefined method PHPUnit\\Framework\\TestCase::.*#'

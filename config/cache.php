@@ -114,6 +114,11 @@ return [
     |
     */
 
+    // Список классов, разрешённых к десериализации из кэша. false — запрет
+    // любых объектов: в кэш кладутся только массивы и скаляры, а запрет
+    // закрывает цепочки десериализации при утечке APP_KEY.
+    'serializable_classes' => false,
+
     'prefix' => env('CACHE_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-cache-'),
 
 ];

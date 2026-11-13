@@ -20,6 +20,7 @@ final readonly class Distance
      *
      * @throws InvalidDistance расстояние отрицательное или точнее 0.01 км
      */
+    #[\NoDiscard]
     public static function fromKilometers(float $kilometers): self
     {
         if ($kilometers < 0 || abs($kilometers - round($kilometers, 2)) > 1e-9) {

@@ -83,6 +83,7 @@ function cabinetCreateOrderForm(array $overrides = []): array
  * Компонент формы с заполненными полями и выбранными адресами справочника.
  *
  * @param array{pickup: AddressDirectoryEntry, dropoff: AddressDirectoryEntry} $addresses
+ * @return Testable<CreateOrder>
  */
 function cabinetCreateOrderComponent(array $addresses): Testable
 {
@@ -440,7 +441,9 @@ it('не перезаписывает свежие подсказки устар
     // Ответ на прошлый терм приходит позже свежего — он отбрасывается.
     // Livewire запрещает вызывать lifecycle-хуки напрямую, поэтому зовём его
     // у экземпляра компонента: проверяется сама защита от устаревшего ответа.
-    $component->instance()->updatedPickupQuery('тв');
+    /** @var CreateOrder $instance */
+    $instance = $component->instance();
+    $instance->updatedPickupQuery('тв');
 
     expect($component->get('pickupSuggestions'))->toBe($fresh);
 });

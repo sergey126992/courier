@@ -117,4 +117,4 @@
 | Публичный трекинг | `ui/PublicTracking.md` | Контракт страницы `GET /tracking/{code}`: белый список полей, подпись ссылки и коды ответов |
 
 Компоненты карточки `ui` живут в `resources/views/components/app/*.blade.php`.
-Шаблоны Livewire-компонентов лежат в `resources/views/livewire/{account,auth,cabinet,dispatcher}/*.blade.php`.
+Шаблоны Livewire-компонентов лежат в `resources/views/livewire/{account,auth,cabinet,dispatcher,admin}/*.blade.php`.

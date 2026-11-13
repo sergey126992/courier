@@ -356,7 +356,10 @@ final class OrderList extends Component
             }
         }
 
-        return array_values(array_unique($statuses));
+        // Два шага вместо вложенных вызовов: убрать повторы, переиндексировать.
+        return $statuses
+            |> array_unique(...)
+            |> array_values(...);
     }
 
     /**

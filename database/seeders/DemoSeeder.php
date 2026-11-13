@@ -17,6 +17,7 @@ use App\Models\Dispatch\CourierShift;
 use App\Models\Geography\ServiceZone;
 use App\Models\Order\DeliveryOrder;
 use App\Models\Order\OrderStatusHistory;
+use App\Models\Tracking\CourierLastPosition;
 use App\Models\User;
 use Generator;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -42,6 +43,14 @@ final class DemoSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
+     * База зарезервированного блока номеров демо-заказов: 900001…900020.
+     *
+     * Реальные заказы берут номера из последовательности order_number_seq
+     * начиная с 1, поэтому демо-блок не может с ней пересечься.
+     */
+    private const DEMO_SEQUENCE_BASE = 900000;
+
+    /**
      * Демо-зоны стоят рядом с прямоугольником msk-demo и не перекрывают его.
      *
      * @var array<string, array{south_west: array{0: float, 1: float}, north_east: array{0: float, 1: float}}>
@@ -60,29 +69,55 @@ final class DemoSeeder extends Seeder
      * План заказов: статус, транспорт и курьер подобраны так, чтобы выполнялись
      * ограничения базы (одно активное назначение на курьера) и правила домена.
      *
+     * Активных назначений ровно три (assigned, accepted, picked_up) — по одному
+     * на курьера, а courier@, courier3@ и courier6@ несут только терминальные
+     * назначения. Поэтому у этих трёх курьеров открытая смена без активного
+     * назначения, и подбор кандидатов на созданный заказ не пуст.
+     *
      * @var list<array{status: string, transport: string, kind: string|null, courier: string|null}>
      */
     private const ORDER_PLAN = [
+        // Созданный light-заказ: на него диспетчер смотрит кандидатов.
         ['status' => 'created', 'transport' => 'light', 'kind' => 'bicycle', 'courier' => null],
         ['status' => 'created', 'transport' => 'on_foot', 'kind' => null, 'courier' => null],
         ['status' => 'created', 'transport' => 'car', 'kind' => null, 'courier' => null],
-        ['status' => 'assigned', 'transport' => 'light', 'kind' => 'bicycle', 'courier' => 'courier@courier.test'],
-        ['status' => 'assigned', 'transport' => 'on_foot', 'kind' => null, 'courier' => 'courier6@courier.test'],
-        ['status' => 'accepted', 'transport' => 'light', 'kind' => 'e_bike', 'courier' => 'courier3@courier.test'],
+        // Ровно три активных назначения — по одному на курьера.
+        ['status' => 'assigned', 'transport' => 'on_foot', 'kind' => null, 'courier' => 'courier2@courier.test'],
         ['status' => 'accepted', 'transport' => 'car', 'kind' => null, 'courier' => 'courier5@courier.test'],
         ['status' => 'picked_up', 'transport' => 'light', 'kind' => 'scooter', 'courier' => 'courier4@courier.test'],
-        ['status' => 'picked_up', 'transport' => 'on_foot', 'kind' => null, 'courier' => 'courier2@courier.test'],
+        // Терминальные назначения остальных курьеров: они остаются свободными.
         ['status' => 'delivered', 'transport' => 'light', 'kind' => 'bicycle', 'courier' => 'courier@courier.test'],
-        ['status' => 'delivered', 'transport' => 'on_foot', 'kind' => null, 'courier' => 'courier2@courier.test'],
+        ['status' => 'delivered', 'transport' => 'on_foot', 'kind' => null, 'courier' => 'courier6@courier.test'],
         ['status' => 'delivered', 'transport' => 'light', 'kind' => 'e_bike', 'courier' => 'courier3@courier.test'],
         ['status' => 'delivered', 'transport' => 'car', 'kind' => null, 'courier' => 'courier5@courier.test'],
         ['status' => 'delivered', 'transport' => 'light', 'kind' => 'scooter', 'courier' => 'courier4@courier.test'],
+        ['status' => 'delivered', 'transport' => 'light', 'kind' => 'bicycle', 'courier' => 'courier@courier.test'],
+        ['status' => 'delivered', 'transport' => 'on_foot', 'kind' => null, 'courier' => 'courier2@courier.test'],
+        ['status' => 'delivered', 'transport' => 'light', 'kind' => 'e_bike', 'courier' => 'courier3@courier.test'],
         ['status' => 'closed', 'transport' => 'light', 'kind' => 'bicycle', 'courier' => 'courier@courier.test'],
         ['status' => 'closed', 'transport' => 'on_foot', 'kind' => null, 'courier' => 'courier6@courier.test'],
         ['status' => 'cancelled', 'transport' => 'light', 'kind' => 'bicycle', 'courier' => null],
         ['status' => 'cancelled', 'transport' => 'car', 'kind' => null, 'courier' => null],
         ['status' => 'cancelled', 'transport' => 'on_foot', 'kind' => null, 'courier' => null],
         ['status' => 'failed', 'transport' => 'light', 'kind' => 'e_bike', 'courier' => 'courier3@courier.test'],
+    ];
+
+    /**
+     * Последние позиции свободных курьеров: без них подбор не знает расстояния
+     * до забора и времени подхода, и кандидат получает худший ранг.
+     *
+     * Позиции намеренно разводят правила на созданном light-заказе
+     * (забор 55.7576/37.6054, удлинение маршрута 1.3):
+     * courier@ ближе — 1.30 км на bicycle 15 км/ч, подход 6 минут;
+     * courier3@ дальше — 1.55 км на e_bike 20 км/ч, подход 5 минут.
+     * Поэтому «ближайший» ставит первым courier@, «лучший ETA» — courier3@.
+     *
+     * @var array<string, array{0: float, 1: float}>
+     */
+    private const COURIER_POSITIONS = [
+        'courier@courier.test' => [55.766593, 37.6054],
+        'courier3@courier.test' => [55.746877, 37.6054],
+        'courier6@courier.test' => [55.7515, 37.5938],
     ];
 
     /**
@@ -130,6 +165,7 @@ final class DemoSeeder extends Seeder
             $this->seedAccounts();
             $this->seedZones();
             $this->seedShifts();
+            $this->seedLastPositions();
             $this->seedOrders();
         });
     }
@@ -284,6 +320,27 @@ final class DemoSeeder extends Seeder
     }
 
     /**
+     * Последние позиции свободных курьеров: по одной строке на курьера.
+     *
+     * Позиция обновляется по курьеру, поэтому повторный запуск не создаёт дубликатов.
+     */
+    private function seedLastPositions(): void
+    {
+        $recordedAt = now();
+
+        foreach (self::COURIER_POSITIONS as $email => [$latitude, $longitude]) {
+            CourierLastPosition::query()->updateOrCreate(
+                ['courier_id' => $this->users[$email]->getKey()],
+                [
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                    'recorded_at' => $recordedAt,
+                ],
+            );
+        }
+    }
+
+    /**
      * Заказы со всеми статусами, историей, назначениями и геоточками.
      */
     private function seedOrders(): void
@@ -314,7 +371,7 @@ final class DemoSeeder extends Seeder
      */
     private function seedOrder(int $index, array $item, Carbon $requestedAt, int $year): DeliveryOrder
     {
-        $number = sprintf('CRG-%d-D%04d', $year, $index + 1);
+        $number = sprintf('CRG-%d-%06d', $year, self::DEMO_SEQUENCE_BASE + $index + 1);
         $trackingCode = sprintf('trk_demo%08d', $index + 1);
 
         $sender = $this->users[self::SENDER_EMAILS[$index % count(self::SENDER_EMAILS)]];

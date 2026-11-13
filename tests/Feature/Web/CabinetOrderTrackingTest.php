@@ -6,6 +6,7 @@ use App\Domain\Identity\Role;
 use App\Domain\Order\OrderStatus;
 use App\Models\Order\DeliveryOrder;
 use App\Models\User;
+use Livewire\Livewire;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +67,12 @@ it('не отличает чужой заказ от несуществующе�
     $this->actingAs(User::factory()->sender()->create());
 
     $foreignResponse = $this->get(route('cabinet.orders.tracking', $foreign));
+
+    // Livewire 4 отдаёт блок @livewireStyles только один раз на экземпляр
+    // приложения, а тест переиспользует его. Сбрасываем состояние так же,
+    // как это происходит на новом HTTP-запросе в рабочем окружении.
+    Livewire::flushState();
+
     $missingResponse = $this->get('/cabinet/orders/999999/tracking');
 
     $foreignResponse->assertNotFound();

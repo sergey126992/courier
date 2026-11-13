@@ -15,8 +15,9 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      # PostgreSQL 18 — та же мажорная версия, что в docker-compose.yml.
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_DB: courier
           POSTGRES_USER: courier
@@ -50,13 +51,13 @@ jobs:
           key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
           restore-keys: composer-${{ runner.os }}-
 
-      - name: PHP 8.3
+      - name: PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: pdo_pgsql, mbstring, bcmath
           coverage: xdebug
-          ini-values: memory_limit=512M
+          ini-values: memory_limit=512M, opcache.enable_cli=1
           tools: composer:v2
 
       - name: Установка зависимостей
@@ -128,10 +129,11 @@ jobs:
           key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: npm-${{ runner.os }}-
 
-      - name: PHP 8.3 и Composer
+      - name: PHP 8.5 и Composer
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
+          ini-values: opcache.enable_cli=1
           tools: composer:v2
 
       - name: Зависимости PHP
@@ -198,7 +200,7 @@ jobs:
         run: docker compose exec -T -e NOTIFICATIONS_TRANSPORT=rabbitmq notifications-app php artisan test --filter=TransportParity --log-junit storage/logs/transport-parity-service-rabbitmq.xml
 
       - name: Паритет монолита против RabbitMQ
-        # Монолит запускается в образе сервиса: он уже содержит PHP 8.3
+        # Монолит запускается в образе сервиса: он уже содержит PHP 8.5
         # с расширениями (включая sockets) и находится в сети compose.
         # Образ монолита для тестов не нужен: стадия assets требует vendor,
         # которого у неё нет (отдельная известная проблема сборки).

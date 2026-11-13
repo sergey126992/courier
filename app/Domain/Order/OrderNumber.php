@@ -33,6 +33,7 @@ final readonly class OrderNumber
     /**
      * @throws InvalidOrderNumber формат не соответствует CRG-ГГГГ-NNNNNN
      */
+    #[\NoDiscard]
     public static function fromString(string $value): self
     {
         if (preg_match(self::PATTERN, $value, $matches) !== 1) {
@@ -45,6 +46,7 @@ final readonly class OrderNumber
     /**
      * @throws InvalidOrderNumber номер последовательности или год вне допустимых значений
      */
+    #[\NoDiscard]
     public static function fromSequence(int $sequence, int $year): self
     {
         if ($sequence < 1 || $sequence > self::MAX_SEQUENCE) {

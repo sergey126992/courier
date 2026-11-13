@@ -67,6 +67,7 @@ final readonly class Money
      *
      * @throws CurrencyMismatch валюты сумм различаются
      */
+    #[\NoDiscard]
     public function plus(self $other): self
     {
         $this->assertSameCurrency($other, 'сложение');
@@ -79,6 +80,7 @@ final readonly class Money
      *
      * @throws CurrencyMismatch валюты сумм различаются
      */
+    #[\NoDiscard]
     public function minus(self $other): self
     {
         $this->assertSameCurrency($other, 'вычитание');
@@ -91,6 +93,7 @@ final readonly class Money
      *
      * Округление симметрично для отрицательных сумм: -0.5 копейки даёт -1 копейку.
      */
+    #[\NoDiscard]
     public function multipliedBy(float|int $coefficient): self
     {
         $product = $this->amount * (float) $coefficient;

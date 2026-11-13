@@ -6,22 +6,22 @@
     "keywords": ["laravel", "notifications", "service"],
     "license": "proprietary",
     "require": {
-        "php": "^8.3",
-        "laravel/framework": "^12.0",
+        "php": "^8.5",
+        "laravel/framework": "^13.0",
         "opis/json-schema": "^2",
         "php-amqplib/php-amqplib": "^3.7",
         "predis/predis": "^3.7"
     },
     "require-dev": {
-        "brianium/paratest": "^7.0",
+        "brianium/paratest": "^7.20",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.24",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.6",
-        "pestphp/pest": "^3.0",
-        "pestphp/pest-plugin-laravel": "^3.0",
-        "phpunit/phpunit": "^11.5.50"
+        "nunomaduro/collision": "^8.9.5",
+        "pestphp/pest": "^4.7",
+        "pestphp/pest-plugin-laravel": "^4.1",
+        "phpunit/phpunit": "^12.5"
     },
     "autoload": {
         "psr-4": {

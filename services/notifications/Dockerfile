@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1
 
-# Базовый слой: PHP 8.3 FPM (Alpine) с расширениями, нужными сервису оповещений.
-FROM php:8.3-fpm-alpine AS php-base
+# Базовый слой: PHP 8.5 FPM (Alpine) с расширениями, нужными сервису оповещений.
+FROM php:8.5-fpm-alpine AS php-base
 
+# OPcache в PHP 8.5 собран в ядро и включён по умолчанию, поэтому в списке
+# расширений его нет: docker-php-ext-install opcache падает (нет каталога modules).
 RUN apk add --no-cache libpq postgresql-dev \
     && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS linux-headers \
-    && docker-php-ext-install -j"$(nproc)" pdo_pgsql pcntl sockets opcache \
+    && docker-php-ext-install -j"$(nproc)" pdo_pgsql pcntl sockets \
     && apk del --no-network .build-deps
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

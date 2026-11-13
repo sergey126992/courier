@@ -12,6 +12,26 @@
 - отчёт по заказам с оптимизацией индексов, кабинет и очередь диспетчера в браузере;
 - описание OpenAPI из кода с проверкой в CI, демонстрационный набор и сервис оповещений.
 
+## Стек
+
+Актуальные мажорные версии. Точные — в `composer.lock`, `package-lock.json` и в тегах образов `Dockerfile`/`docker-compose.yml`.
+
+| Компонент | Версия | Где зафиксировано |
+|---|---|---|
+| PHP | 8.5 (`php:8.5-fpm-alpine`) | [Dockerfile](Dockerfile), [.github/workflows/ci.yml](.github/workflows/ci.yml) |
+| Laravel | 13 | [composer.json](composer.json) |
+| Livewire + Alpine.js | 4 / 3 | [composer.json](composer.json), [config/livewire.php](config/livewire.php), [package.json](package.json) |
+| PostgreSQL | 18 (`postgres:18-alpine`) | [docker-compose.yml](docker-compose.yml), CI |
+| Redis | 7 (`redis:7-alpine`) | [docker-compose.yml](docker-compose.yml) |
+| Тесты | Pest 4, PHPUnit 12, Paratest 7.20 | [composer.json](composer.json), [phpunit.xml](phpunit.xml) |
+| Качество кода | Pint, PHPStan level 8 + Larastan, Scramble (OpenAPI) | [pint.json](pint.json), [phpstan.neon](phpstan.neon), [app/Console/Commands/ApiDocs.php](app/Console/Commands/ApiDocs.php) |
+| Сборка фронтенда | Vite 7, Tailwind CSS 4 | [vite.config.js](vite.config.js), [package.json](package.json) |
+
+- сервис оповещений (`services/notifications/`) — отдельное Laravel 13-приложение на той же версии PHP, без Livewire;
+- Paratest остаётся на 7.x намеренно: Pest 4 требует `^7.20`, мажора 8 нет;
+- OPcache включён и для CLI (`opcache.enable_cli = 1` в `docker/php/app.ini`) — ускоряет тесты и долгоживущие воркеры очереди;
+- сервер приложения — `nginx:1.27-alpine` + php-fpm, брокер (профиль `broker`) — `rabbitmq:3.13-management-alpine`; перехватчик почты — Mailpit, адреса в разделе «Адреса».
+
 ## Быстрый запуск
 
 ```sh
@@ -143,7 +163,7 @@ docker compose --profile broker up -d rabbitmq   # без профиля всё 
 15. [Сервис оповещений](services/notifications/README.md) — устройство, каналы, эксплуатация.
 16. [Документация API](docs/api/README.md) — описание из кода, сборка, проверка.
 17. [Замеры производительности](docs/Производительность/README.md) — планы «до/после», индексы.
-18. [ADR-0001 … ADR-0017](docs/adr/ADR-0001-стек.md) — решения и их цена.
+18. [ADR-0001 … ADR-0018](docs/adr/ADR-0001-стек.md) — решения и их цена.
 
 ### Демо-пользователи
 

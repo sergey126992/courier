@@ -1,6 +1,6 @@
 # Сервис оповещений
 
-Отдельное приложение Laravel 12 (`courier/services/notifications/`) для отправки
+Отдельное приложение Laravel 13 (`courier/services/notifications/`) для отправки
 email и push по событиям заказов. Границы сервиса и требования — в
 [ЧТЗ - Сервис оповещений](../../.github/docs/Техническое%20задание/Сервис%20оповещений/ЧТЗ%20-%20Сервис%20оповещений.md),
 план этапа — в `.github/plans/Сервис оповещений/План - Сервис оповещений (M11).md`.
@@ -19,13 +19,13 @@ JSON Schema, создаёт строки журнала по матрице ка
 
 | Слой | Выбор |
 |---|---|
-| Runtime | PHP 8.3, `php:8.3-fpm-alpine`, multi-stage `Dockerfile` (`php-base` → `vendor` / `dev` → `runtime`) |
-| Каркас | Laravel 12, свой `composer.json` и `composer.lock` |
-| БД | PostgreSQL 16, отдельная база `notifications` и роль `notifications` |
+| Runtime | PHP 8.5, `php:8.5-fpm-alpine`, multi-stage `Dockerfile` (`php-base` → `vendor` / `dev` → `runtime`) |
+| Каркас | Laravel 13, свой `composer.json` и `composer.lock` |
+| БД | PostgreSQL 18, отдельная база `notifications` и роль `notifications` |
 | Транспорт | Redis 7 Streams через `predis/predis` по умолчанию; RabbitMQ через `php-amqplib/php-amqplib` v3 как опция |
 | Расширения PHP | `pdo_pgsql`, `pcntl`, `sockets`, `opcache`; `sockets` обязателен для `php-amqplib` v3 |
 | Контракты | JSON Schema draft 2020-12, `opis/json-schema` ^2 |
-| Тесты и качество | Pest 3, Pint, Larastan (PHPStan level 8), Paratest |
+| Тесты и качество | Pest 4, PHPUnit 12, Pint, Larastan (PHPStan level 8), Paratest 7 |
 
 Sanctum, Livewire и Blade-UI в сервисе не используются: интерфейс живёт
 в монолите и обращается к API сервиса. Laravel Queue для отправки не
